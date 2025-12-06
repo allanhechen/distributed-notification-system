@@ -1,0 +1,35 @@
+info:
+  contact: {}
+  title: Distributed Notification Server
+  version: 0.0.1
+paths:
+  /:
+    get:
+      description: Returns a JSON response indicating the service status and current
+        timestamp.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Check server health
+      tags:
+      - health
+  /v1/ping:
+    get:
+      description: Endpoint to quickly verify that the server is reachable
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: pong!
+          schema:
+            type: string
+      summary: Test server connectivity
+      tags:
+      - health
+swagger: "2.0"

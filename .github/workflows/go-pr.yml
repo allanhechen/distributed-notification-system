@@ -33,6 +33,18 @@ jobs:
                   make fmt
                   git diff --exit-code
 
+            - name: Add Go bin to PATH
+              run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
+            - name: Install swag
+              run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
+
+            - name: Verify Swagger docs
+              working-directory: services/app
+              run: |
+                  swag init -g main.go -o docs
+                  git diff --exit-code
+
             - name: Build
               run: make build
 
