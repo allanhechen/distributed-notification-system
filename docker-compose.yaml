@@ -25,6 +25,12 @@ services:
         volumes:
             - ./cockroach-data:/cockroach/cockroach-data
 
+    cockroach-init:
+        image: cockroachdb/cockroach:v25.4.1
+        depends_on:
+            - cockroachdb
+        command: sql --insecure --host=cockroachdb -e "CREATE DATABASE IF NOT EXISTS notifications"
+
 networks:
     app-network:
         driver: bridge
