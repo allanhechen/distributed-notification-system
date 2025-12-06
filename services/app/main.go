@@ -12,6 +12,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+//	@title		Distributed Notification Server
+//	@version	0.0.1
+
+// @host	localhost:8080
 func main() {
 	godotenv.Load()
 

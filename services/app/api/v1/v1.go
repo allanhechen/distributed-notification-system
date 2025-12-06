@@ -7,13 +7,14 @@ import (
 	"net/http"
 )
 
-// Ping endpoint
-// @Summary Ping the server
-// @Description Simple endpoint that returns "pong!"
-// @Tags health
-// @Produce plain
-// @Success 200 {string} string "pong!"
-// @Router /ping [get]
+// Connectivity Check
+//
+//	@Summary		Test server connectivity
+//	@Description	Endpoint to quickly verify that the server is reachable
+//	@Tags			health
+//	@Produce		plain
+//	@Success		200	{string}	string	"pong!"
+//	@Router			/v1/ping [get]
 func ping(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "pong!\n")
 }

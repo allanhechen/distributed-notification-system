@@ -7,15 +7,18 @@ import (
 	"time"
 
 	v1 "github.com/allanhechen/distributed-notification-system/services/app/api/v1"
+	_ "github.com/allanhechen/distributed-notification-system/services/app/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// Healthcheck endpoint, with additional information to be added in the future
-// @Summary Health check
-// @Description Returns the status of the service
-// @Tags health
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Router /health [get]
+// Healthcheck endpoint
+//
+//	@Summary		Check server health
+//	@Description	Returns a JSON response indicating the service status and current timestamp.
+//	@Tags			health
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Router			/ [get]
 func healthcheck(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path != "/" {
 		w.WriteHeader(http.StatusNotFound)
@@ -41,6 +44,8 @@ func Api() *http.ServeMux {
 	v1 := v1.Routes()
 
 	api := http.NewServeMux()
+	api.Handle("/docs/", httpSwagger.WrapHandler)
+
 	api.Handle("/v1/", http.StripPrefix("/v1", v1))
 	api.HandleFunc("/", healthcheck)
 
