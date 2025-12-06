@@ -1,3 +1,4 @@
+// Serves as the main entrypoint into the API handlers of the application
 package api
 
 import (
@@ -8,6 +9,13 @@ import (
 	v1 "github.com/allanhechen/distributed-notification-system/services/app/api/v1"
 )
 
+// Healthcheck endpoint, with additional information to be added in the future
+// @Summary Health check
+// @Description Returns the status of the service
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /health [get]
 func healthcheck(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path != "/" {
 		w.WriteHeader(http.StatusNotFound)
@@ -28,6 +36,7 @@ func healthcheck(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// Creates an API handler, expected to be used once during the initialization of the application
 func Api() *http.ServeMux {
 	v1 := v1.Routes()
 
