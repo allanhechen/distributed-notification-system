@@ -11,6 +11,20 @@ services:
         networks:
             - app-network
 
+    cockroachdb:
+        image: cockroachdb/cockroach:v25.4.1
+        environment:
+            - COCKROACH_DATABASE=notifications
+        container_name: cockroachdb
+        command: start-single-node --insecure
+        ports:
+            - "26257:26257" # SQL client
+            - "8081:8080" # Admin UI
+        networks:
+            - app-network
+        volumes:
+            - ./cockroach-data:/cockroach/cockroach-data
+
 networks:
     app-network:
         driver: bridge
