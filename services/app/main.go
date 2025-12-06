@@ -2,19 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/allanhechen/distributed-notification-system/services/app/api"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
-
-func ping(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "pong!\n")
-}
 
 func main() {
 	godotenv.Load()
@@ -32,9 +28,9 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
-	http.HandleFunc("/ping", ping)
+	api := api.Api()
 	log.Println("server starting on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", api); err != nil {
 		log.Fatal(err)
 	}
 }
