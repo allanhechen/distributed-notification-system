@@ -12,10 +12,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
-//	@title		Distributed Notification Server
-//	@version	0.0.1
-
-// @host	localhost:8080
+// @title		Distributed Notification Server
+// @version	0.0.1
 func main() {
 	godotenv.Load()
 
@@ -32,9 +30,9 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
-	api := api.Api()
+	apiHandler := api.Api()
 	log.Println("server starting on :8080")
-	if err := http.ListenAndServe(":8080", api); err != nil {
+	if err := http.ListenAndServe(":8080", apiHandler); err != nil {
 		log.Fatal(err)
 	}
 }

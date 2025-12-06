@@ -21,6 +21,7 @@ import (
 //	@Router			/ [get]
 func healthcheck(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path != "/" {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{
 			"error": "not found",
@@ -41,12 +42,12 @@ func healthcheck(w http.ResponseWriter, req *http.Request) {
 
 // Creates an API handler, expected to be used once during the initialization of the application
 func Api() *http.ServeMux {
-	v1 := v1.Routes()
+	v1Mux := v1.Routes()
 
 	api := http.NewServeMux()
 	api.Handle("/docs/", httpSwagger.WrapHandler)
 
-	api.Handle("/v1/", http.StripPrefix("/v1", v1))
+	api.Handle("/v1/", http.StripPrefix("/v1", v1Mux))
 	api.HandleFunc("/", healthcheck)
 
 	return api
