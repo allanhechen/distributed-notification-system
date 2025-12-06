@@ -1,0 +1,6 @@
+# the application will sit behind an API gateway, there is no need for security checks to happen behind it
+skip-check:
+    - CKV_OPENAPI_1 # securityDefinitions not empty
+    - CKV_OPENAPI_4 # global security field has rules
+    - CKV_OPENAPI_5 # security operations not empty
+    - CKV_OPENAPI_6 # security requirement in securityDefinitions
