@@ -15,7 +15,8 @@ import (
 //	@title		Distributed Notification Server
 //	@version	0.0.1
 
-// @host	localhost:8080
+// main starts the Distributed Notification Server: it loads environment variables, establishes a PostgreSQL connection, initializes the API router, and listens for HTTP requests on :8080.
+// It logs fatal errors on startup failures and ensures the database connection and context are cleaned up on exit.
 func main() {
 	godotenv.Load()
 

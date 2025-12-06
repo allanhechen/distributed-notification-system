@@ -14,12 +14,14 @@ import (
 //	@Tags			health
 //	@Produce		plain
 //	@Success		200	{string}	string	"pong!"
-//	@Router			/v1/ping [get]
+// ping is an HTTP handler for a simple health check that writes "pong!\n" to the response.
 func ping(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "pong!\n")
 }
 
-// Creates a v1 Routes handler, expected to be used once during the initialization of the application
+// Routes creates and returns an HTTP ServeMux configured with v1 API routes.
+// It registers the /ping health-check endpoint and is intended to be called
+// once during application initialization to mount v1 handlers.
 func Routes() *http.ServeMux {
 	v1 := http.NewServeMux()
 

@@ -18,7 +18,8 @@ import (
 //	@Tags			health
 //	@Produce		json
 //	@Success		200	{object}	map[string]string
-//	@Router			/ [get]
+// healthcheck responds to requests to the root path with a JSON status and current timestamp.
+// If the request URL path is not exactly "/", it responds with HTTP 404 and a JSON error object.
 func healthcheck(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path != "/" {
 		w.WriteHeader(http.StatusNotFound)
@@ -39,7 +40,9 @@ func healthcheck(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Creates an API handler, expected to be used once during the initialization of the application
+// Api constructs and returns an *http.ServeMux configured with the application's HTTP routes.
+// It mounts Swagger documentation at /docs/, serves version 1 routes under /v1/, and registers
+// a root healthcheck at /. Intended to be called once during application initialization.
 func Api() *http.ServeMux {
 	v1 := v1.Routes()
 
