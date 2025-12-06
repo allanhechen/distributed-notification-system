@@ -1,0 +1,38 @@
+services:
+    rabbitmq:
+        image: rabbitmq:3-management
+        container_name: rabbitmq
+        ports:
+            - "5672:5672" # AMQP
+            - "15672:15672" # Management UI
+        environment:
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASS: guest
+        networks:
+            - app-network
+
+    cockroachdb:
+        image: cockroachdb/cockroach:v25.4.1
+        environment:
+            - COCKROACH_DATABASE=notifications
+        container_name: cockroachdb
+        command: start-single-node --insecure
+        ports:
+            - "26257:26257" # SQL client
+            - "8081:8080" # Admin UI
+        networks:
+            - app-network
+        volumes:
+            - ./cockroach-data:/cockroach/cockroach-data
+
+    cockroach-init:
+        image: cockroachdb/cockroach:v25.4.1
+        depends_on:
+            - cockroachdb
+        networks:
+            - app-network
+        command: sql --insecure --host=cockroachdb -e "CREATE DATABASE IF NOT EXISTS notifications"
+
+networks:
+    app-network:
+        driver: bridge

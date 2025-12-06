@@ -1,1 +1,4 @@
 build/
+cockroach-data/
+
+.env
