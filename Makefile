@@ -1,4 +1,4 @@
-MODULES := $(shell find ./services -name "go.mod" -exec dirname {} \;)
+MODULES := $(shell find ./ -name "go.mod" -exec dirname {} \;)
 BUILD_DIR := build
 
 .PHONY: build fmt test tidy
@@ -8,7 +8,7 @@ build:
 	for mod in $(MODULES); do \
 		echo "Building $$mod"; \
 		name=$$(basename $$mod); \
-		(cd $$mod && go build -o ../../$(BUILD_DIR)/$$name ./...); \
+		(cd $$mod && go build -o $(shell pwd)/$(BUILD_DIR)/$$name .); \
 	done
 
 fmt:

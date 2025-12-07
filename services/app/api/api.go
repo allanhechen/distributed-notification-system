@@ -47,7 +47,7 @@ func Api() *http.ServeMux {
 	api := http.NewServeMux()
 	api.Handle("/docs/", httpSwagger.WrapHandler)
 
-	api.Handle("/v1/", http.StripPrefix("/v1", v1Mux))
+	api.HandleFunc("/v1/", CanonicalLogger(http.StripPrefix("/v1", v1Mux)))
 	api.HandleFunc("/", healthcheck)
 
 	return api
