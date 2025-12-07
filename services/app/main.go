@@ -47,13 +47,10 @@ func loadConfig() *Config {
 	}
 }
 
-// @title		Distributed Notification Server
-// @version	0.0.1
-func main() {
-	config := loadConfig()
+func configureLogger(config *Config) {
 	serverInstance := uuid.New()
-
 	var logger *slog.Logger
+
 	switch config.logLevel {
 	case "production":
 		err := os.MkdirAll("logs", 0o755)
@@ -82,7 +79,16 @@ func main() {
 	case "development":
 		logger = slog.New(tint.NewHandler(os.Stdout, nil))
 	}
+
 	slog.SetDefault(logger)
+}
+
+// @title		Distributed Notification Server
+// @version	0.0.1
+func main() {
+	config := loadConfig()
+
+	configureLogger(config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
