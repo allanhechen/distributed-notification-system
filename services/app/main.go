@@ -48,12 +48,12 @@ func loadConfig() *Config {
 }
 
 func configureLogger(config *Config) *os.File {
-	serverInstance := uuid.New()
 	var logger *slog.Logger
-	var fileHandler *os.File
+	var fileHandler *os.File = nil
 
 	switch config.logLevel {
 	case "production":
+		serverInstance := uuid.New()
 		err := os.MkdirAll("logs", 0o755)
 		if err != nil {
 			log.Fatalf("could not create logs directory: %v", err)
@@ -87,12 +87,19 @@ func configureLogger(config *Config) *os.File {
 }
 
 func configureDatabase(config *Config) (*pgx.Conn, context.Context) {
+	// context only for database connections
 	connCtx, connCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer connCancel()
 
 	conn, err := pgx.Connect(connCtx, config.databaseUrl)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+
+	if err := conn.Ping(connCtx); err != nil {
+		slog.Error("failed to ping database", "error", err)
+		conn.Close(context.Background())
 		os.Exit(1)
 	}
 
@@ -107,17 +114,10 @@ func main() {
 
 	f := configureLogger(config)
 	conn, ctx := configureDatabase(config)
-	defer f.Close()
+	if f != nil {
+		defer f.Close()
+	}
 	defer conn.Close(ctx)
-
-	defer func() {
-		if r := recover(); r != nil {
-			f.Close()
-			conn.Close(ctx)
-			slog.Error("server panicked, cleanly closing connections")
-			panic(r)
-		}
-	}()
 
 	apiHandler := api.Api()
 	slog.Info("server starting on :8080")
