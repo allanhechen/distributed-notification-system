@@ -27,13 +27,13 @@ type Config struct {
 func loadConfig() *Config {
 	godotenv.Load()
 
-	var databaseUrl = os.Getenv("DATABASE_URL")
-	if databaseUrl == "" {
+	var databaseUrl, urlPresent = os.LookupEnv("DATABASE_URL")
+	if !urlPresent {
 		log.Fatal("failed to get database url")
 	}
 
-	var logLevel = os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
+	var logLevel, levelPresent = os.LookupEnv("LOG_LEVEL")
+	if !levelPresent {
 		log.Fatal("failed to get log level")
 	}
 	logLevel = strings.ToLower(logLevel)
@@ -47,9 +47,10 @@ func loadConfig() *Config {
 	}
 }
 
-func configureLogger(config *Config) {
+func configureLogger(config *Config) *os.File {
 	serverInstance := uuid.New()
 	var logger *slog.Logger
+	var fileHandler *os.File
 
 	switch config.logLevel {
 	case "production":
@@ -66,6 +67,7 @@ func configureLogger(config *Config) {
 		if err != nil {
 			log.Fatalf("could not create log file: %v", err)
 		}
+		fileHandler = f
 
 		logger = slog.New(slog.NewJSONHandler(f, &slog.HandlerOptions{
 			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
@@ -81,6 +83,21 @@ func configureLogger(config *Config) {
 	}
 
 	slog.SetDefault(logger)
+	return fileHandler
+}
+
+func configureDatabase(config *Config) (*pgx.Conn, context.Context) {
+	connCtx, connCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer connCancel()
+
+	conn, err := pgx.Connect(connCtx, config.databaseUrl)
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+
+	appCtx := context.Background()
+	return conn, appCtx
 }
 
 // @title		Distributed Notification Server
@@ -88,19 +105,24 @@ func configureLogger(config *Config) {
 func main() {
 	config := loadConfig()
 
-	configureLogger(config)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := pgx.Connect(ctx, config.databaseUrl)
-	if err != nil {
-		log.Fatal(err)
-	}
+	f := configureLogger(config)
+	conn, ctx := configureDatabase(config)
+	defer f.Close()
 	defer conn.Close(ctx)
 
+	defer func() {
+		if r := recover(); r != nil {
+			f.Close()
+			conn.Close(ctx)
+			slog.Error("server panicked, cleanly closing connections")
+			panic(r)
+		}
+	}()
+
 	apiHandler := api.Api()
-	log.Println("server starting on :8080")
+	slog.Info("server starting on :8080")
 	if err := http.ListenAndServe(":8080", apiHandler); err != nil {
-		log.Fatal(err)
+		slog.Error("failed to start HTTP server", "error", err)
+		os.Exit(1)
 	}
 }
