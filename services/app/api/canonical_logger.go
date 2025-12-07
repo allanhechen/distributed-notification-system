@@ -30,11 +30,10 @@ func CanonicalLogger(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		requestId := "d4cc4732-4a8a-4044-a868-0cacb61bfc8a" // TODO: Retrieve this off the request using validation
 		userId := "3c4e79fd-feec-4f37-9dbd-b7054796e24d"    // TODO: Retrieve this off the request using validation
-		serviceId := "bd1f7110-1862-4b4e-9972-78b203a3cb32" // TODO: Generate and pass this on server startup
 		start := time.Now()
 
 		customWriter := &wrappedWriter{w, 0}
-		requestLogger := slog.Default().With("request_id", requestId, "user_id", userId, "service_id", serviceId)
+		requestLogger := slog.Default().With("request_id", requestId, "user_id", userId)
 
 		l := &utils.LogState{}
 		ctx := req.Context()

@@ -2,37 +2,127 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/app/api"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"github.com/lmittmann/tint"
 )
+
+// Config loaded from env to configure application behavior
+type Config struct {
+	databaseUrl string
+	logLevel    string
+}
+
+func loadConfig() *Config {
+	godotenv.Load()
+
+	var databaseUrl, urlPresent = os.LookupEnv("DATABASE_URL")
+	if !urlPresent {
+		log.Fatal("failed to get database url")
+	}
+
+	var logLevel, levelPresent = os.LookupEnv("LOG_LEVEL")
+	if !levelPresent {
+		log.Fatal("failed to get log level")
+	}
+	logLevel = strings.ToLower(logLevel)
+	if logLevel != "development" && logLevel != "production" {
+		log.Fatal("log level set to an invalid value")
+	}
+
+	return &Config{
+		databaseUrl,
+		logLevel,
+	}
+}
+
+func configureLogger(config *Config) *os.File {
+	var logger *slog.Logger
+	var fileHandler *os.File = nil
+
+	switch config.logLevel {
+	case "production":
+		serverInstance := uuid.New()
+		err := os.MkdirAll("logs", 0o755)
+		if err != nil {
+			log.Fatalf("could not create logs directory: %v", err)
+		}
+
+		now := time.Now().UTC().Format("20060102T150405Z0700")
+		logName := fmt.Sprintf("server_log_%s_%s.log", now, serverInstance)
+		logPath := filepath.Join("./logs", logName)
+		f, err := os.Create(logPath)
+
+		if err != nil {
+			log.Fatalf("could not create log file: %v", err)
+		}
+		fileHandler = f
+
+		logger = slog.New(slog.NewJSONHandler(f, &slog.HandlerOptions{
+			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.TimeKey {
+					return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+				}
+				return a
+			},
+		}))
+		logger = logger.With("service_id", serverInstance)
+	case "development":
+		logger = slog.New(tint.NewHandler(os.Stdout, nil))
+	}
+
+	slog.SetDefault(logger)
+	return fileHandler
+}
+
+func configureDatabase(config *Config) (*pgx.Conn, context.Context) {
+	// context only for database connections
+	connCtx, connCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer connCancel()
+
+	conn, err := pgx.Connect(connCtx, config.databaseUrl)
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+
+	if err := conn.Ping(connCtx); err != nil {
+		slog.Error("failed to ping database", "error", err)
+		conn.Close(context.Background())
+		os.Exit(1)
+	}
+
+	appCtx := context.Background()
+	return conn, appCtx
+}
 
 // @title		Distributed Notification Server
 // @version	0.0.1
 func main() {
-	godotenv.Load()
+	config := loadConfig()
 
-	var DATABASE_URL = os.Getenv("DATABASE_URL")
-	if DATABASE_URL == "" {
-		log.Fatal("failed to get database url")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := pgx.Connect(ctx, DATABASE_URL)
-	if err != nil {
-		log.Fatal(err)
+	f := configureLogger(config)
+	conn, ctx := configureDatabase(config)
+	if f != nil {
+		defer f.Close()
 	}
 	defer conn.Close(ctx)
 
 	apiHandler := api.Api()
-	log.Println("server starting on :8080")
+	slog.Info("server starting on :8080")
 	if err := http.ListenAndServe(":8080", apiHandler); err != nil {
-		log.Fatal(err)
+		slog.Error("failed to start HTTP server", "error", err)
+		os.Exit(1)
 	}
 }
