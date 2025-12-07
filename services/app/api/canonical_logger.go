@@ -43,6 +43,20 @@ func CanonicalLogger(next http.Handler) http.HandlerFunc {
 		utils.AddField(ctx, "method", req.Method)
 		utils.AddField(ctx, "path", req.URL.Path)
 		req = req.WithContext(ctx)
+
+		defer func() {
+			if r := recover(); r != nil {
+				duration := time.Since(start)
+				utils.AddField(ctx, "duration", duration)
+				utils.AddField(ctx, "panic", r)
+				finalFields := l.Snapshot()
+				finalFields["status"] = 500
+				logAttrs := utils.FlattenMap(finalFields)
+				requestLogger.Error("request panicked", logAttrs...)
+				panic(r)
+			}
+		}()
+
 		next.ServeHTTP(customWriter, req)
 
 		duration := time.Since(start)

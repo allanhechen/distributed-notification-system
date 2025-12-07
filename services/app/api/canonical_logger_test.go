@@ -13,6 +13,7 @@ import (
 
 type mockLogHandler struct {
 	Records []slog.Record
+	attrs   []slog.Attr
 }
 
 func (h *mockLogHandler) Enabled(_ context.Context, _ slog.Level) bool {
@@ -24,11 +25,14 @@ func (h *mockLogHandler) Handle(_ context.Context, r slog.Record) error {
 	return nil
 }
 
-func (h *mockLogHandler) WithAttrs(_ []slog.Attr) slog.Handler {
+func (h *mockLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	newAttrs := append([]slog.Attr{}, h.attrs...)
+	newAttrs = append(newAttrs, attrs...)
+	h.attrs = newAttrs
 	return h
 }
 
-func (h *mockLogHandler) WithGroup(_ string) slog.Handler {
+func (h *mockLogHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
@@ -98,8 +102,62 @@ func TestCanonicalLogger(t *testing.T) {
 				t.Error("Log record did not contain the correct 'path' field.")
 			}
 			if !keyFound {
-				t.Error("Log record did not contain the correct 'keyFound' field.")
+				t.Error("Log record did not contain the correct 'key' field.")
 			}
 		})
 	}
+}
+
+func TestCanonicalLoggerPanic(t *testing.T) {
+	mockHandler := &mockLogHandler{}
+	testLogger := slog.New(mockHandler)
+	slog.SetDefault(testLogger)
+
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic(0)
+	})
+
+	req := httptest.NewRequest("GET", "/test/path", nil)
+	rec := httptest.NewRecorder()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic, but function did not panic")
+		}
+
+		if len(mockHandler.Records) != 1 {
+			t.Fatalf("Expected 1 log record, got %d", len(mockHandler.Records))
+		}
+
+		record := mockHandler.Records[0]
+
+		if record.Level != slog.LevelError {
+			t.Errorf("Expected level %v, got %v", slog.LevelError, record.Level)
+		}
+		if record.Message != "request panicked" {
+			t.Errorf("Expected message '%s', got '%s'", "request panicked", record.Message)
+		}
+
+		statusFound := false
+		pathFound := false
+		record.Attrs(func(attr slog.Attr) bool {
+			if attr.Key == "status" && attr.Value.Kind() == slog.KindInt64 && attr.Value.Int64() == 500 {
+				statusFound = true
+			}
+			if attr.Key == "path" && attr.Value.Kind() == slog.KindString && attr.Value.String() == "/test/path" {
+				pathFound = true
+			}
+
+			return true
+		})
+
+		if !statusFound {
+			t.Error("Log record did not contain the correct 'status' field.")
+		}
+		if !pathFound {
+			t.Error("Log record did not contain the correct 'path' field.")
+		}
+	}()
+
+	api.CanonicalLogger(nextHandler).ServeHTTP(rec, req)
 }

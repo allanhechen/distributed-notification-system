@@ -31,6 +31,9 @@ func (l *LogState) Snapshot() map[string]any {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	if l.fields == nil {
+		return make(map[string]any)
+	}
 	return maps.Clone(l.fields)
 }
 

@@ -2,7 +2,7 @@
 
 ## The goal behind logging
 
-We want events to be traceable from outside of the application. This will
+We want events to be traceable from outside the application. This will
 enable the following:
 
 -   Following a request through microservices
@@ -70,6 +70,6 @@ setting an environment variable:
 2. `production` mode:
 
     - Outputs to "./logs" from the working directory of the service
-    - Logs has the identification fields
+    - Logs have the identification fields
     - Logs are persistent
     - Logs stored in JSON format
