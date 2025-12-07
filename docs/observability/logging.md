@@ -51,25 +51,25 @@ service. To support this, logs will include information to determine their
 origin, along with the commit hash. We will use structured logs with
 consistent identification fields. These fields include:
 
--   `requestId` (from the JWT, if available)
--   `userId` (from the JWT, if available)
--   Instance identification
+-   `request_id` (from the JWT, if available)
+-   `user_id` (from the JWT, if available)
+-   `service_id` Server instance identification
 -   Commit hash
 
 The service administrator can configure log output into two outputs by
-setting an environment variable:
+setting the LOG_LEVEL environment variable:
 
 1. `development` mode:
 
     - Outputs to stdout
     - Has color formatting
-    - Does not include the identification fields
+    - Does not include the instance identification fields
     - Logs are not persistent
     - Output stored in key=value pairs
 
 2. `production` mode:
 
     - Outputs to "./logs" from the working directory of the service
-    - Logs have the identification fields
+    - Logs have the instance identification fields
     - Logs are persistent
     - Logs stored in JSON format
