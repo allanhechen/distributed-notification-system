@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestRequestDataMiddleware(t *testing.T) {
+func TestRequestMetadataMiddleware(t *testing.T) {
 	fakeRequestIdStr := "84e7a4bf-b687-499c-bcae-86d1b8454d93"
 	fakeUserIdStr := "69eb61d2-8f13-484a-881e-3577c8c7d770"
 
@@ -27,6 +27,7 @@ func TestRequestDataMiddleware(t *testing.T) {
 		}
 	}
 	server := httptest.NewServer(RequestMetadataMiddleware(mockHandler))
+	defer server.Close()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": fakeUserId,
