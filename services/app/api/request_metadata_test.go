@@ -1,0 +1,46 @@
+package api
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
+
+func TestRequestMetadataMiddleware(t *testing.T) {
+	handlerCalled := false
+	fakeRequestIdStr := "84e7a4bf-b687-499c-bcae-86d1b8454d93"
+	fakeUserIdStr := "69eb61d2-8f13-484a-881e-3577c8c7d770"
+
+	fakeRequestId, _ := uuid.Parse(fakeRequestIdStr)
+	fakeUserId, _ := uuid.Parse(fakeUserIdStr)
+
+	mockHandler := func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if receivedRequestId, ok := ctx.Value(requestIdKey).(uuid.UUID); !ok || receivedRequestId != fakeRequestId {
+			t.Errorf("expected requestId to be %v, got %v", fakeRequestId, receivedRequestId)
+		}
+
+		if receivedUserId, ok := ctx.Value(userIdKey).(uuid.UUID); !ok || receivedUserId != fakeUserId {
+			t.Errorf("expected userId to be %v, got %v", fakeUserId, receivedUserId)
+		}
+		handlerCalled = true
+	}
+	server := httptest.NewServer(RequestMetadataMiddleware(mockHandler))
+	defer server.Close()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": fakeUserId,
+	})
+	tokenString, _ := token.SignedString([]byte("mock signing secret"))
+	request, _ := http.NewRequest("GET", server.URL, nil)
+	request.Header.Add("Authorization", "Bearer "+tokenString)
+	request.Header.Add("X-REQUEST-ID", fakeRequestIdStr)
+	server.Client().Do(request)
+
+	if !handlerCalled {
+		t.Error("handler was not called")
+	}
+}

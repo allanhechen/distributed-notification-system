@@ -26,17 +26,29 @@ func (w *wrappedWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+// CanonicalLogger is an HTTP middleware that adds standardized logging
+// and panic recovery to the request handling chain. Intended to be placed
+// in the beginning of request processing chain, after the metadata has
+// been extracted.
+//
+// CanonicalLogger creates a slog with the requestId and userId embedded.
+// All request handlers are expected to utilize this logger to report
+// logs relevant to the request.
+//
+// All logged attrs are expected to be added to LogState embedded within
+// the context with `utils.AddField`, all of which will be repeated at the
+// end of the request.
 func CanonicalLogger(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		requestId := "d4cc4732-4a8a-4044-a868-0cacb61bfc8a" // TODO: Retrieve this off the request using validation
-		userId := "3c4e79fd-feec-4f37-9dbd-b7054796e24d"    // TODO: Retrieve this off the request using validation
+		ctx := req.Context()
 		start := time.Now()
+		requestId := ctx.Value(requestIdKey)
+		userId := ctx.Value(userIdKey)
 
 		customWriter := &wrappedWriter{w, 0}
 		requestLogger := slog.Default().With("request_id", requestId, "user_id", userId)
 
 		l := &utils.LogState{}
-		ctx := req.Context()
 		ctx = context.WithValue(ctx, utils.Logger, requestLogger)
 		ctx = context.WithValue(ctx, utils.LoggedState, l)
 		utils.AddField(ctx, "method", req.Method)
