@@ -10,6 +10,7 @@ import (
 )
 
 func TestRequestMetadataMiddleware(t *testing.T) {
+	handlerCalled := false
 	fakeRequestIdStr := "84e7a4bf-b687-499c-bcae-86d1b8454d93"
 	fakeUserIdStr := "69eb61d2-8f13-484a-881e-3577c8c7d770"
 
@@ -25,6 +26,7 @@ func TestRequestMetadataMiddleware(t *testing.T) {
 		if receivedUserId, ok := ctx.Value(userIdKey).(uuid.UUID); !ok || receivedUserId != fakeUserId {
 			t.Errorf("expected userId to be %v, got %v", fakeUserId, receivedUserId)
 		}
+		handlerCalled = true
 	}
 	server := httptest.NewServer(RequestMetadataMiddleware(mockHandler))
 	defer server.Close()
@@ -37,4 +39,8 @@ func TestRequestMetadataMiddleware(t *testing.T) {
 	request.Header.Add("Authorization", "Bearer "+tokenString)
 	request.Header.Add("X-REQUEST-ID", fakeRequestIdStr)
 	server.Client().Do(request)
+
+	if !handlerCalled {
+		t.Error("handler was not called")
+	}
 }
