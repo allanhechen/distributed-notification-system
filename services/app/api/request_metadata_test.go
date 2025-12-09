@@ -18,22 +18,22 @@ func TestRequestDataMiddleware(t *testing.T) {
 
 	mockHandler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if receivedRequestId, ok := ctx.Value(requestId).(uuid.UUID); !ok || receivedRequestId != fakeRequestId {
+		if receivedRequestId, ok := ctx.Value(requestIdKey).(uuid.UUID); !ok || receivedRequestId != fakeRequestId {
 			t.Errorf("expected requestId to be %v, got %v", fakeRequestId, receivedRequestId)
 		}
 
-		if receivedUserId, ok := ctx.Value(userId).(uuid.UUID); !ok || receivedUserId != fakeUserId {
+		if receivedUserId, ok := ctx.Value(userIdKey).(uuid.UUID); !ok || receivedUserId != fakeUserId {
 			t.Errorf("expected userId to be %v, got %v", fakeUserId, receivedUserId)
 		}
 	}
 	server := httptest.NewServer(RequestMetadataMiddleware(mockHandler))
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"request_id": fakeRequestId,
-		"user_id":    fakeUserId,
+		"user_id": fakeUserId,
 	})
 	tokenString, _ := token.SignedString([]byte("mock signing secret"))
 	request, _ := http.NewRequest("GET", server.URL, nil)
 	request.Header.Add("Authorization", "Bearer "+tokenString)
+	request.Header.Add("X-REQUEST-ID", fakeRequestIdStr)
 	server.Client().Do(request)
 }

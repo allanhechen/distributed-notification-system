@@ -12,15 +12,14 @@ import (
 
 type RequestIdentifiers struct {
 	jwt.RegisteredClaims
-	RequestId uuid.UUID `json:"request_id"`
-	UserId    uuid.UUID `json:"user_id"`
+	UserId uuid.UUID `json:"user_id"`
 }
 
 // Unique keys for the metadata context
 type metadataContextKey string
 
-const requestId metadataContextKey = "requestId"
-const userId metadataContextKey = "userId"
+const requestIdKey metadataContextKey = "requestId"
+const userIdKey metadataContextKey = "userId"
 
 // RequestMetadataMiddleware retrieves the identifying information for the
 // current request from its associated JWT, and immediately rejects any
@@ -34,6 +33,14 @@ const userId metadataContextKey = "userId"
 func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		auth := req.Header.Get("Authorization")
+		requestIdStr := req.Header.Get("X-REQUEST-ID")
+		requestId, err := uuid.Parse(requestIdStr)
+		if err != nil {
+			http.Error(w, "invalid request id", http.StatusUnauthorized)
+			slog.Error("request received with invalid request id")
+			os.Exit(1)
+		}
+
 		if auth == "" {
 			http.Error(w, "missing authorization header", http.StatusUnauthorized)
 			slog.Error("request received without authorization header")
@@ -63,8 +70,8 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		ctx := req.Context()
-		ctx = context.WithValue(ctx, requestId, claims.RequestId)
-		ctx = context.WithValue(ctx, userId, claims.UserId)
+		ctx = context.WithValue(ctx, requestIdKey, requestId)
+		ctx = context.WithValue(ctx, userIdKey, claims.UserId)
 		req = req.WithContext(ctx)
 
 		next.ServeHTTP(w, req)
