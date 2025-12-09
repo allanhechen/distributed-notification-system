@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type RequestIdentifiers struct {
+type requestIdentifiers struct {
 	jwt.RegisteredClaims
 	UserId uuid.UUID `json:"user_id"`
 }
@@ -58,14 +58,14 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		headerToken := strings.TrimPrefix(auth, prefix)
-		token, _, err := new(jwt.Parser).ParseUnverified(headerToken, &RequestIdentifiers{})
+		token, _, err := new(jwt.Parser).ParseUnverified(headerToken, &requestIdentifiers{})
 		if err != nil {
 			http.Error(w, "invalid JWT", http.StatusUnauthorized)
 			slog.Error("request received with invalid JWT", "error", err)
 			os.Exit(1)
 		}
 
-		claims, ok := token.Claims.(*RequestIdentifiers)
+		claims, ok := token.Claims.(*requestIdentifiers)
 		if !ok {
 			http.Error(w, "invalid JWT", http.StatusUnauthorized)
 			slog.Error("request received with invalid JWT")
