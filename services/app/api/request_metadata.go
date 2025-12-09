@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -28,6 +29,8 @@ const userIdKey metadataContextKey = "userId"
 //
 // The request has already been verified at this point, so we can skip
 // checking the JWT signature. We also know that it exists, and is valid.
+// We call os.Exit(1) to kill the program as quickly as possible in case
+// this invariant is ever violated
 //
 // [logging documentation]: https://github.com/allanhechen/distributed-notification-system/blob/main/docs/observability/logging.md
 func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -44,14 +47,14 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if auth == "" {
 			http.Error(w, "missing authorization header", http.StatusUnauthorized)
 			slog.Error("request received without authorization header")
-			panic("request received without authorization header")
+			os.Exit(1)
 		}
 
 		const prefix = "Bearer "
 		if !strings.HasPrefix(auth, prefix) {
 			http.Error(w, "invalid authorization header", http.StatusUnauthorized)
 			slog.Error("request received invalid authorization header")
-			panic("request received invalid authorization header")
+			os.Exit(1)
 		}
 
 		headerToken := strings.TrimPrefix(auth, prefix)
@@ -59,14 +62,14 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			http.Error(w, "invalid JWT", http.StatusUnauthorized)
 			slog.Error("request received with invalid JWT", "error", err)
-			panic("request received with invalid JWT")
+			os.Exit(1)
 		}
 
 		claims, ok := token.Claims.(*RequestIdentifiers)
 		if !ok {
 			http.Error(w, "invalid JWT", http.StatusUnauthorized)
 			slog.Error("request received with invalid JWT")
-			panic("request received with invalid JWT")
+			os.Exit(1)
 		}
 
 		ctx := req.Context()
