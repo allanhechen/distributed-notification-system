@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,16 +37,14 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if auth == "" {
 			http.Error(w, "missing authorization header", http.StatusUnauthorized)
 			slog.Error("request received without authorization header")
-			os.Exit(1)
-			return
+			panic("request received without authorization header")
 		}
 
 		const prefix = "Bearer "
 		if !strings.HasPrefix(auth, prefix) {
 			http.Error(w, "invalid authorization header", http.StatusUnauthorized)
 			slog.Error("request received invalid authorization header")
-			os.Exit(1)
-			return
+			panic("request received invalid authorization header")
 		}
 
 		headerToken := strings.TrimPrefix(auth, prefix)
@@ -55,15 +52,14 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			http.Error(w, "invalid JWT", http.StatusUnauthorized)
 			slog.Error("request received with invalid JWT", "error", err)
-			os.Exit(1)
+			panic("request received with invalid JWT")
 		}
 
 		claims, ok := token.Claims.(*RequestIdentifiers)
 		if !ok {
 			http.Error(w, "invalid JWT", http.StatusUnauthorized)
 			slog.Error("request received with invalid JWT")
-			os.Exit(1)
-			return
+			panic("request received with invalid JWT")
 		}
 
 		ctx := req.Context()
