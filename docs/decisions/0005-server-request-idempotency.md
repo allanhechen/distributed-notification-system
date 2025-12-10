@@ -17,8 +17,8 @@ consumers will be addressed in a separate ADR.
 
 We will implement end-to-end idempotency checks consistent throughout the
 application servers. This will be accomplished by generating an
-idempotency key on the client, sent with the `X-Idempotency-Key` header
-on every request.
+idempotency key on the client, sent with the `X-REQUEST-ID` header on
+every request.
 
 The server reasonably assumes that a client will generate a new
 idempotency key for every request. The server will store all idempotency
