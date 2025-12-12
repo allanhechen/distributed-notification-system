@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/allanhechen/distributed-notification-system/services/app/db"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
