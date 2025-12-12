@@ -1,4 +1,4 @@
-package db
+package repository
 
 import (
 	"context"
@@ -11,9 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Idempotency is the group of queries related to handling request
-// idempotency.
-type Idempotency struct {
+// Idempotency is the repository that handles request idempotency.
+type Idempotency interface {
+	GetStoredRequest(context.Context, uuid.UUID) (*db.IdempotentRequest, error)
+}
+
+// pgx implementation of the idempotency repository
+type PgxIdempotenty struct {
 	pool *pgxpool.Pool
 }
 
@@ -24,7 +28,7 @@ type Idempotency struct {
 // given requestId. Callers should check for this error for determining
 // if a request is new. Failed RequestStatusIds on the returned struct
 // should also be taken into consideration for retrying requests.
-func (i *Idempotency) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*db.IdempotentRequest, error) {
+func (i *PgxIdempotenty) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*db.IdempotentRequest, error) {
 	q := db.New(i.pool)
 	res, err := q.GetRequestStatus(ctx, requestId)
 	if err != nil {
