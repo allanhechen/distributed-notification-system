@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/allanhechen/distributed-notification-system/services/app/db/generated"
+	"github.com/allanhechen/distributed-notification-system/services/app/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,8 +24,8 @@ type Idempotency struct {
 // given requestId. Callers should check for this error for determining
 // if a request is new. Failed RequestStatusIds on the returned struct
 // should also be taken into consideration for retrying requests.
-func (i *Idempotency) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*generated.IdempotentRequest, error) {
-	q := generated.New(i.pool)
+func (i *Idempotency) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*db.IdempotentRequest, error) {
+	q := db.New(i.pool)
 	res, err := q.GetRequestStatus(ctx, requestId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

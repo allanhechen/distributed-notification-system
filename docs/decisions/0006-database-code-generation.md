@@ -28,9 +28,9 @@ and result mappings.
 Our project structure will follow this format (within the application
 server):
 
--   `db/migrations/` for the database migrations
--   `db/generated/` for the sqlc output
--   `db/queries/` for the input SQL queries
+-   `internal/db/migrations/` for the database migrations
+-   `internal/db/` for the sqlc output
+-   `interna/db/queries/` for the input SQL queries
 
 ## Consequences
 

@@ -3,7 +3,7 @@
 //   sqlc v1.30.0
 // source: idempotency.sql
 
-package generated
+package db
 
 import (
 	"context"
