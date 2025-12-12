@@ -17,6 +17,7 @@ jobs:
               with:
                   sqlc-version: "1.30.0"
             - run: sqlc diff
+              working-directory: services/app
 
             - name: Set up Go
               uses: actions/setup-go@v4
