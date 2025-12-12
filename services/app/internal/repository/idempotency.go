@@ -17,18 +17,18 @@ type Idempotency interface {
 }
 
 // pgx implementation of the idempotency repository
-type PgxIdempotenty struct {
+type PgxIdempotency struct {
 	pool *pgxpool.Pool
 }
 
 // GetStoredRequest checks the database for a stored request with the
 // given requestId.
 //
-// Returns an error that wraps ErrNoRows if no record is found for the
-// given requestId. Callers should check for this error for determining
-// if a request is new. Failed RequestStatusIds on the returned struct
-// should also be taken into consideration for retrying requests.
-func (i *PgxIdempotenty) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*db.IdempotentRequest, error) {
+// Returns ErrNoRows if no record is found for the given requestId.
+// Callers should check for this error for determining if a request is
+// new. Failed RequestStatusIds on the returned struct should also be
+// taken into consideration for retrying requests.
+func (i *PgxIdempotency) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*db.IdempotentRequest, error) {
 	q := db.New(i.pool)
 	res, err := q.GetRequestStatus(ctx, requestId)
 	if err != nil {

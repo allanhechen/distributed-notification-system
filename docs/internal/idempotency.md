@@ -6,7 +6,7 @@ must handle requests in an idempotent way to address the limitations
 within our system model. This implementation requires the client to
 generate unique UUIDs to be used with every new request.
 
-requestIds must be unique even between users.
+Request IDs must be unique even between users.
 
 ## The Happy Path
 
@@ -17,12 +17,12 @@ nodes crash.
 1. The client sends a request to an endpoint with a fresh X-REQUEST-ID
 2. The request passes through the API gateway, reaching one of the
    application servers
-3. The request is logged in the database table `request_idempotency_keys`
+3. The request is logged in the database table `idempotent_requests`
    with an initial lock of 120 seconds
    a. We DO NOT store a hash of the initial request, bad client
    implementations might receive undefined behavior and that is
    acceptable. To help counteract client errors, we send back a
-   `X-Cache-Status: Idempotency-Hit` header to signifiy
+   `X-Cache-Status: Idempotency-Hit` header to signify idempotency htis
    b. This log records an "in progress" status for the request
    c. Any other requests with this request_id received during this time
    receives a response with a 425 Too Early status
@@ -36,7 +36,7 @@ nodes crash.
    database, we have serializable transactions
 5. The handler handles the request, writing any side effects to a
    transaction outbox table
-   a. The `request_idempotency_keys` table is also updated in the same
+   a. The `idempotent_requests` table is also updated in the same
    transaction
    b. Successful requests (and persistent user error requests) are cached
    in the idempotency table for a period of 24 hours

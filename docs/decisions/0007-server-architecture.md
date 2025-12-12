@@ -21,7 +21,7 @@ implement this pattern with 4 different layers:
 
 1. Database interface layer
    a. We will write plain SQL and generate corresponding code with sqlc
-   b. We currently only support CockroachdDB, but this enables us to
+   b. We currently only support CockroachDB, but this enables us to
    migrate to other databases as well
 2. Repository layer
    a. We will manage our transactions in this layer

@@ -4,10 +4,10 @@ package types
 // application server.
 //
 // sqlc generates code pointing to this status.
-type RequestStatus int
+type RequestStatus int32
 
 const (
-	StatusProcessing RequestStatus = iota
-	StatusComplete
-	StatusFailed
+	StatusProcessing RequestStatus = 0
+	StatusComplete   RequestStatus = 1
+	StatusFailed     RequestStatus = 2
 )

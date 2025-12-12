@@ -42,7 +42,7 @@ exists:
 
 If the idempotency key does not exist, the server stores the idempotency
 key and begins processing of the request. This information is initially
-stored with a short TTL (~5 minutes) with an in progress status. Two
+stored with a short TTL (~5 minutes) with an in-progress status. Two
 situations may follow:
 
 1. The server fulfills the request

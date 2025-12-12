@@ -30,7 +30,7 @@ server):
 
 -   `internal/db/migrations/` for the database migrations
 -   `internal/db/` for the sqlc output
--   `interna/db/queries/` for the input SQL queries
+-   `internal/db/queries/` for the input SQL queries
 
 ## Consequences
 
