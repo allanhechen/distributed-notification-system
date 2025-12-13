@@ -16,6 +16,7 @@ import (
 // Idempotency is the repository that handles request idempotency.
 type Idempotency interface {
 	GetStoredRequest(context.Context, uuid.UUID) (*db.IdempotentRequest, error)
+	CreateStoredRequest(context.Context, db.CreateRequestStatusParams) error
 }
 
 // pgx implementation of the idempotency repository

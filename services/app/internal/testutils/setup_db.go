@@ -41,10 +41,12 @@ func GetCrdbDatabaseContainer(ctx context.Context) (*DatabaseContainer, error) {
 
 	hostPort, err := crdbContainer.MappedPort(ctx, defaultPort)
 	if err != nil {
+		_ = crdbContainer.Terminate(ctx)
 		return nil, err
 	}
 	hostIP, err := crdbContainer.Host(ctx)
 	if err != nil {
+		_ = crdbContainer.Terminate(ctx)
 		return nil, err
 	}
 	connString := fmt.Sprintf(
@@ -84,15 +86,18 @@ func Migrate(ctx context.Context, databaseContainer *DatabaseContainer) error {
 	if err != nil {
 		return err
 	}
+	defer m.Close()
 
 	err = m.Up()
-	if err != nil {
+	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}
 
 	return nil
 }
 
+// getMigrationAbsolutePath resolves the migration directory path relative to the caller's location.
+// Expects migrations to be in <projectRoot>/internal/db/migrations.
 func getMigrationAbsolutePath(relativePathToProjectRoot string) (string, error) {
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
