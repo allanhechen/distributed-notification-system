@@ -4,9 +4,6 @@
 ## 📝 Summary
 <!-- 1-3 sentence overview of the change -->
 
-## 🔧 Changes
-<!-- Bullet points of what changed -->
-
 ## 🧪 How to Test
 <!-- Steps for reviewers to validate -->
 1. enterStepsHere
