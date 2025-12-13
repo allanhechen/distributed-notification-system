@@ -7,6 +7,8 @@ import (
 	"runtime"
 
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/cockroachdb"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/cockroachdb"
 )
@@ -14,30 +16,57 @@ import (
 // DatabaseContainer holds a reference to a container used for integration
 // testing.
 type DatabaseContainer struct {
-	Container  testcontainers.Container
-	ConnString string
+	Container           testcontainers.Container
+	ConnString          string
+	MigrationConnString string
 }
 
 // GetCrdbDatabaseContainer creates a DatabaseContainer reference for
 // testing with CockroachDB.
 func GetCrdbDatabaseContainer(ctx context.Context) (*DatabaseContainer, error) {
+	const (
+		user        = "root"
+		database    = "notifications"
+		sslMode     = "disable"
+		defaultPort = "26257/tcp"
+	)
 	crdbContainer, err := cockroachdb.Run(ctx, "cockroachdb/cockroach:v25.4.1",
 		cockroachdb.WithInsecure(),
-		cockroachdb.WithUser("root"),
-		cockroachdb.WithDatabase("notifications"),
+		cockroachdb.WithUser(user),
+		cockroachdb.WithDatabase(database),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	connString, err := crdbContainer.ConnectionString(ctx)
+	hostPort, err := crdbContainer.MappedPort(ctx, defaultPort)
 	if err != nil {
 		return nil, err
 	}
-
+	hostIP, err := crdbContainer.Host(ctx)
+	if err != nil {
+		return nil, err
+	}
+	connString := fmt.Sprintf(
+		"postgres://%s@%s:%s/%s?sslmode=%s",
+		user,
+		hostIP,
+		hostPort.Port(),
+		database,
+		sslMode,
+	)
+	migrationConnString := fmt.Sprintf(
+		"cockroachdb://%s@%s:%s/%s?sslmode=%s",
+		user,
+		hostIP,
+		hostPort.Port(),
+		database,
+		sslMode,
+	)
 	return &DatabaseContainer{
-		Container:  crdbContainer,
-		ConnString: connString,
+		Container:           crdbContainer,
+		ConnString:          connString,
+		MigrationConnString: migrationConnString,
 	}, nil
 
 }
@@ -46,12 +75,12 @@ func GetCrdbDatabaseContainer(ctx context.Context) (*DatabaseContainer, error) {
 // used after creating a new DatabaseContainer to match the production
 // database.
 func Migrate(ctx context.Context, databaseContainer *DatabaseContainer) error {
-	migrationPath, err := getMigrationAbsolutePath("../../")
+	migrationPath, err := getSourceURL("../../")
 	if err != nil {
 		return err
 	}
 
-	m, err := migrate.New(migrationPath, databaseContainer.ConnString)
+	m, err := migrate.New(migrationPath, databaseContainer.MigrationConnString)
 	if err != nil {
 		return err
 	}
@@ -70,7 +99,7 @@ func getMigrationAbsolutePath(relativePathToProjectRoot string) (string, error) 
 		return "", fmt.Errorf("failed to get caller information")
 	}
 
-	migrationDir := filepath.Join(filepath.Dir(filename), relativePathToProjectRoot)
+	migrationDir := filepath.Join(filepath.Dir(filename), relativePathToProjectRoot, "internal", "db", "migrations")
 
 	absPath, err := filepath.Abs(migrationDir)
 	if err != nil {

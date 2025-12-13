@@ -7,9 +7,37 @@ package db
 
 import (
 	"context"
+	"time"
 
+	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
 )
+
+const createRequestStatus = `-- name: CreateRequestStatus :exec
+INSERT INTO idempotent_requests(
+    request_id,
+    user_id,
+    request_status_id,
+    expires_at
+) VALUES ($1, $2, $3, $4)
+`
+
+type CreateRequestStatusParams struct {
+	RequestID       uuid.UUID           `json:"request_id"`
+	UserID          uuid.UUID           `json:"user_id"`
+	RequestStatusID types.RequestStatus `json:"request_status_id"`
+	ExpiresAt       time.Time           `json:"expires_at"`
+}
+
+func (q *Queries) CreateRequestStatus(ctx context.Context, arg CreateRequestStatusParams) error {
+	_, err := q.db.Exec(ctx, createRequestStatus,
+		arg.RequestID,
+		arg.UserID,
+		arg.RequestStatusID,
+		arg.ExpiresAt,
+	)
+	return err
+}
 
 const getRequestStatus = `-- name: GetRequestStatus :one
 SELECT request_id, user_id, request_status_id, cached_response_code, cached_response, expires_at FROM idempotent_requests
