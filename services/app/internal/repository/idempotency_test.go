@@ -6,11 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/testutils"
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,12 +34,20 @@ func TestIdempotencyRepository(t *testing.T) {
 	}
 
 	reqID := uuid.New()
-	newRequest := db.CreateRequestParams{
+	newRequest := CreateRequestParams{
 		RequestID:       reqID,
 		UserID:          uuid.New(),
 		RequestStatusID: types.StatusProcessing,
 		ExpiresAt:       time.Now().Add(120 * time.Second).Truncate(time.Microsecond).UTC(),
 	}
+
+	payload := map[string]any{
+		"key": 1234,
+	}
+
+	b, err := json.Marshal(payload)
+	require.NoError(t, err)
+	cachedResponseCode := int32(200)
 
 	t.Run("Create and Get Success", func(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
@@ -79,7 +85,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Mark Non-Expired Request as Failed", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusProcessing,
@@ -94,7 +100,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Mark Expired Request as Failed", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusProcessing,
@@ -108,22 +114,13 @@ func TestIdempotencyRepository(t *testing.T) {
 	})
 
 	t.Run("Mark Non-Existent Request as Success", func(t *testing.T) {
-		payload := map[string]any{
-			"key": 1234,
-		}
-
-		b, err := json.Marshal(payload)
-		require.NoError(t, err)
 
 		randomID := uuid.New()
-		err = repo.UpdateRequestSuccess(ctx, db.UpdateRequestSuccessParams{
-			RequestID: randomID,
-			ExpiresAt: time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: pgtype.Int4{
-				Int32: 200,
-				Valid: true,
-			},
-			CachedResponse: b,
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          randomID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: &cachedResponseCode,
+			CachedResponse:     &b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)
@@ -131,7 +128,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Mark Expired Request as Success", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusProcessing,
@@ -140,8 +137,11 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestSuccess(ctx, db.UpdateRequestSuccessParams{
-			RequestID: reqID,
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          reqID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: &cachedResponseCode,
+			CachedResponse:     &b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)
@@ -149,7 +149,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Mark Non-Processing Request as Success", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusFailed, // already terminal
@@ -158,8 +158,11 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestSuccess(ctx, db.UpdateRequestSuccessParams{
-			RequestID: reqID,
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          reqID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: &cachedResponseCode,
+			CachedResponse:     &b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)
@@ -167,7 +170,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Mark Processing Request as Success", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusProcessing,
@@ -177,8 +180,11 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestSuccess(ctx, db.UpdateRequestSuccessParams{
-			RequestID: reqID,
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          reqID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: &cachedResponseCode,
+			CachedResponse:     &b,
 		})
 
 		assert.NoError(t, err)
@@ -187,7 +193,7 @@ func TestIdempotencyRepository(t *testing.T) {
 	t.Run("Reprocess Non-Existent Request", func(t *testing.T) {
 		randomID := uuid.New()
 
-		err := repo.UpdateRequestReprocess(ctx, db.UpdateRequestReprocessParams{
+		err := repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
 			RequestID: randomID,
 		})
 
@@ -196,7 +202,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Reprocess Non-Expired Processing Request", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusProcessing,
@@ -206,7 +212,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestReprocess(ctx, db.UpdateRequestReprocessParams{
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
 			RequestID: reqID,
 		})
 
@@ -215,7 +221,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Reprocess Succeeded Request", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusComplete,
@@ -225,7 +231,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestReprocess(ctx, db.UpdateRequestReprocessParams{
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
 			RequestID: reqID,
 		})
 
@@ -234,7 +240,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Reprocess Failed Request", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusFailed,
@@ -244,7 +250,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestReprocess(ctx, db.UpdateRequestReprocessParams{
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
 			RequestID: reqID,
 		})
 
@@ -253,7 +259,7 @@ func TestIdempotencyRepository(t *testing.T) {
 
 	t.Run("Reprocess Expired Processing Request", func(t *testing.T) {
 		reqID := uuid.New()
-		newRequest := db.CreateRequestParams{
+		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
 			RequestStatusID: types.StatusProcessing,
@@ -263,7 +269,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		require.NoError(t, err)
 
-		err = repo.UpdateRequestReprocess(ctx, db.UpdateRequestReprocessParams{
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
 			RequestID: reqID,
 		})
 
