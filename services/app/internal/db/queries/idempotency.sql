@@ -2,7 +2,7 @@
 SELECT * FROM idempotent_requests
 WHERE request_id = $1;
 
--- name: CreateRequest :execrows
+-- name: CreateRequest :exec
 INSERT INTO idempotent_requests(
     request_id,
     user_id,
@@ -10,11 +10,21 @@ INSERT INTO idempotent_requests(
     expires_at
 ) VALUES ($1, $2, $3, $4);
 
--- name: UpdateRequest :execrows
+-- name: UpdateRequestFailed :execrows
 UPDATE idempotent_requests SET
-    request_status_id = $1,
-    cached_response_code = $2,
-    cached_response = $3,
-    expires_at = $4
-WHERE request_id = $5 AND request_status_id = $6 AND expires_at < $7;
+    request_status_id = 2
+WHERE request_id = $1 AND request_status_id = 0 AND expires_at < NOW();
 
+-- name: UpdateRequestSuccess :execrows
+UPDATE idempotent_requests SET
+    request_status_id = 1,
+    expires_at = $1
+WHERE request_id = $2 AND request_status_id = 0;
+
+-- name: UpdateRequestReprocess :execrows
+UPDATE idempotent_requests SET
+    request_status_id = 0,
+    expires_at = $1
+WHERE request_id = $2 AND
+    (request_status_id = 2 OR
+    (request_status_id = 0 AND expires_at < NOW()));

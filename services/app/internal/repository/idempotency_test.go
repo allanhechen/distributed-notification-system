@@ -34,7 +34,7 @@ func TestIdempotencyRepository(t *testing.T) {
 	}
 
 	reqID := uuid.New()
-	newRequest := db.CreateRequestStatusParams{
+	newRequest := db.CreateRequestParams{
 		RequestID:       reqID,
 		UserID:          uuid.New(),
 		RequestStatusID: types.StatusProcessing,

@@ -16,7 +16,10 @@ import (
 // Idempotency is the repository that handles request idempotency.
 type Idempotency interface {
 	GetStoredRequest(context.Context, uuid.UUID) (*db.IdempotentRequest, error)
-	CreateStoredRequest(context.Context, db.CreateRequestStatusParams) error
+	CreateStoredRequest(context.Context, db.CreateRequestParams) error
+	UpdateRequestFailed(context.Context, uuid.UUID) error
+	UpdateRequestSuccess(context.Context, db.UpdateRequestSuccessParams) error
+	UpdateRequestReprocess(context.Context, db.UpdateRequestReprocessParams) error
 }
 
 // pgx implementation of the idempotency repository
@@ -33,7 +36,7 @@ type PgxIdempotency struct {
 // taken into consideration for retrying requests.
 func (p *PgxIdempotency) GetStoredRequest(ctx context.Context, requestId uuid.UUID) (*db.IdempotentRequest, error) {
 	q := db.New(p.pool)
-	res, err := q.GetRequestStatus(ctx, requestId)
+	res, err := q.GetRequest(ctx, requestId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNoRows
@@ -50,9 +53,9 @@ func (p *PgxIdempotency) GetStoredRequest(ctx context.Context, requestId uuid.UU
 //
 // Returns ErrAlreadyExists if the request already exists. Callers should
 // check for this error to ensure the request was correctly inserted.
-func (p *PgxIdempotency) CreateStoredRequest(ctx context.Context, idempotentRequest db.CreateRequestStatusParams) error {
+func (p *PgxIdempotency) CreateStoredRequest(ctx context.Context, idempotentRequest db.CreateRequestParams) error {
 	q := db.New(p.pool)
-	err := q.CreateRequestStatus(ctx, idempotentRequest)
+	err := q.CreateRequest(ctx, idempotentRequest)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -62,6 +65,64 @@ func (p *PgxIdempotency) CreateStoredRequest(ctx context.Context, idempotentRequ
 		}
 
 		return fmt.Errorf("db: failed to create request with id %s: %w", idempotentRequest.RequestID, err)
+	}
+
+	return nil
+}
+
+// UpdateRequestFailed marks the selected record as failed. This record
+// must already be expired (current time > record expiry time), and also
+// exist in the database.
+//
+// If either condition is not met, ErrNoRows is returned.
+func (p *PgxIdempotency) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
+	q := db.New(p.pool)
+	_, err := q.UpdateRequestFailed(ctx, requestId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNoRows
+		}
+
+		return fmt.Errorf("db: failed to mark request with requestId %s as failed: %w", requestId, err)
+	}
+
+	return nil
+}
+
+// UpdateRequestSuccess marks an existing request as successful, and
+// sets the row expiry time to the time provided in the params. This
+// record must already exist in the database, and currently be in
+// processing status.
+//
+// If either condition is not met, ErrNoRows is returned.
+func (p *PgxIdempotency) UpdateRequestSuccess(ctx context.Context, params db.UpdateRequestSuccessParams) error {
+	q := db.New(p.pool)
+	_, err := q.UpdateRequestSuccess(ctx, params)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNoRows
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+// UpdateFailedRequestProcessed marks an existing request as processing.
+// This request must already exist, and be in either failed status or
+// processing status with an expired timestamp.
+//
+// If either ocndition is not met, ErrNoRows is returned.
+func (p *PgxIdempotency) UpdateRequestReprocess(ctx context.Context, params db.UpdateRequestReprocessParams) error {
+	q := db.New(p.pool)
+	_, err := q.UpdateRequestReprocess(ctx, params)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNoRows
+		}
+
+		return err
 	}
 
 	return nil
