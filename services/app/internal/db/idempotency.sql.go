@@ -98,7 +98,7 @@ const updateRequestSuccess = `-- name: UpdateRequestSuccess :execrows
 UPDATE idempotent_requests SET
     request_status_id = 1,
     expires_at = $1
-WHERE request_id = $2 AND request_status_id = 0
+WHERE request_id = $2 AND request_status_id = 0 AND expires_at > NOW()
 `
 
 type UpdateRequestSuccessParams struct {

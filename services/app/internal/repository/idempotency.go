@@ -77,15 +77,14 @@ func (p *PgxIdempotency) CreateStoredRequest(ctx context.Context, idempotentRequ
 // If either condition is not met, ErrNoRows is returned.
 func (p *PgxIdempotency) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
 	q := db.New(p.pool)
-	_, err := q.UpdateRequestFailed(ctx, requestId)
+	count, err := q.UpdateRequestFailed(ctx, requestId)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNoRows
-		}
-
 		return fmt.Errorf("db: failed to mark request with requestId %s as failed: %w", requestId, err)
 	}
 
+	if count == 0 {
+		return ErrNoRows
+	}
 	return nil
 }
 
@@ -97,15 +96,14 @@ func (p *PgxIdempotency) UpdateRequestFailed(ctx context.Context, requestId uuid
 // If either condition is not met, ErrNoRows is returned.
 func (p *PgxIdempotency) UpdateRequestSuccess(ctx context.Context, params db.UpdateRequestSuccessParams) error {
 	q := db.New(p.pool)
-	_, err := q.UpdateRequestSuccess(ctx, params)
+	count, err := q.UpdateRequestSuccess(ctx, params)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNoRows
-		}
-
 		return err
 	}
 
+	if count == 0 {
+		return ErrNoRows
+	}
 	return nil
 }
 
@@ -116,14 +114,13 @@ func (p *PgxIdempotency) UpdateRequestSuccess(ctx context.Context, params db.Upd
 // If either ocndition is not met, ErrNoRows is returned.
 func (p *PgxIdempotency) UpdateRequestReprocess(ctx context.Context, params db.UpdateRequestReprocessParams) error {
 	q := db.New(p.pool)
-	_, err := q.UpdateRequestReprocess(ctx, params)
+	count, err := q.UpdateRequestReprocess(ctx, params)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNoRows
-		}
-
 		return err
 	}
 
+	if count == 0 {
+		return ErrNoRows
+	}
 	return nil
 }
