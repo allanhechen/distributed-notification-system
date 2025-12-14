@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/testutils"
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,9 +108,22 @@ func TestIdempotencyRepository(t *testing.T) {
 	})
 
 	t.Run("Mark Non-Existent Request as Success", func(t *testing.T) {
+		payload := map[string]any{
+			"key": 1234,
+		}
+
+		b, err := json.Marshal(payload)
+		require.NoError(t, err)
+
 		randomID := uuid.New()
-		err := repo.UpdateRequestSuccess(ctx, db.UpdateRequestSuccessParams{
+		err = repo.UpdateRequestSuccess(ctx, db.UpdateRequestSuccessParams{
 			RequestID: randomID,
+			ExpiresAt: time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: pgtype.Int4{
+				Int32: 200,
+				Valid: true,
+			},
+			CachedResponse: b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createRequest = `-- name: CreateRequest :exec
@@ -97,17 +98,26 @@ func (q *Queries) UpdateRequestReprocess(ctx context.Context, arg UpdateRequestR
 const updateRequestSuccess = `-- name: UpdateRequestSuccess :execrows
 UPDATE idempotent_requests SET
     request_status_id = 1,
-    expires_at = $1
-WHERE request_id = $2 AND request_status_id = 0 AND expires_at > NOW()
+    expires_at = $1,
+    cached_response_code = $2,
+    cached_response = $3
+WHERE request_id = $4 AND request_status_id = 0 AND expires_at > NOW()
 `
 
 type UpdateRequestSuccessParams struct {
-	ExpiresAt time.Time `json:"expires_at"`
-	RequestID uuid.UUID `json:"request_id"`
+	ExpiresAt          time.Time   `json:"expires_at"`
+	CachedResponseCode pgtype.Int4 `json:"cached_response_code"`
+	CachedResponse     []byte      `json:"cached_response"`
+	RequestID          uuid.UUID   `json:"request_id"`
 }
 
 func (q *Queries) UpdateRequestSuccess(ctx context.Context, arg UpdateRequestSuccessParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateRequestSuccess, arg.ExpiresAt, arg.RequestID)
+	result, err := q.db.Exec(ctx, updateRequestSuccess,
+		arg.ExpiresAt,
+		arg.CachedResponseCode,
+		arg.CachedResponse,
+		arg.RequestID,
+	)
 	if err != nil {
 		return 0, err
 	}

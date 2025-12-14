@@ -18,8 +18,10 @@ WHERE request_id = $1 AND request_status_id = 0 AND expires_at < NOW();
 -- name: UpdateRequestSuccess :execrows
 UPDATE idempotent_requests SET
     request_status_id = 1,
-    expires_at = $1
-WHERE request_id = $2 AND request_status_id = 0 AND expires_at > NOW();
+    expires_at = $1,
+    cached_response_code = $2,
+    cached_response = $3
+WHERE request_id = $4 AND request_status_id = 0 AND expires_at > NOW();
 
 -- name: UpdateRequestReprocess :execrows
 UPDATE idempotent_requests SET
