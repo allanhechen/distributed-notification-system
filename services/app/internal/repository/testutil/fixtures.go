@@ -8,6 +8,8 @@ import (
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 )
 
+// GetCreateRequestParams returns args to create an IdempotentRequest to
+// be used in unit tests
 func GetCreateRequestParams() *repository.CreateRequestParams {
 	return &repository.CreateRequestParams{
 		RequestID:       testutil.RequestId,
