@@ -109,8 +109,8 @@ func (p *PgxIdempotency) UpdateRequestFailed(ctx context.Context, requestId uuid
 
 type UpdateRequestSuccessParams struct {
 	ExpiresAt          time.Time
-	CachedResponseCode *int32
-	CachedResponse     *[]byte
+	CachedResponseCode int32
+	CachedResponse     []byte
 	RequestID          uuid.UUID
 }
 
@@ -124,10 +124,10 @@ func (p *PgxIdempotency) UpdateRequestSuccess(ctx context.Context, params Update
 	dbParams := db.UpdateRequestSuccessParams{
 		ExpiresAt: params.ExpiresAt,
 		CachedResponseCode: pgtype.Int4{
-			Int32: *params.CachedResponseCode,
+			Int32: params.CachedResponseCode,
 			Valid: true,
 		},
-		CachedResponse: *params.CachedResponse,
+		CachedResponse: params.CachedResponse,
 		RequestID:      params.RequestID,
 	}
 	q := db.New(p.pool)
@@ -151,7 +151,7 @@ type UpdateRequestReprocessParams struct {
 // This request must already exist, and be in either failed status or
 // processing status with an expired timestamp.
 //
-// If either ocndition is not met, ErrNoRows is returned.
+// If either condition is not met, ErrNoRows is returned.
 func (p *PgxIdempotency) UpdateRequestReprocess(ctx context.Context, params UpdateRequestReprocessParams) error {
 	dbParams := db.UpdateRequestReprocessParams{
 		ExpiresAt: params.ExpiresAt,

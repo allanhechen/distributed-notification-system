@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
@@ -32,6 +33,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 				RequestStatusID:    types.StatusComplete,
 				CachedResponseCode: nil,
 				CachedResponse:     nil,
+				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
@@ -42,6 +44,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 					Valid: false,
 				},
 				CachedResponse: make([]byte, 0),
+				ExpiresAt:      time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 		},
 		{
@@ -52,6 +55,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 				RequestStatusID:    types.StatusFailed,
 				CachedResponseCode: &cachedResponseCode,
 				CachedResponse:     &cachedResponse,
+				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
@@ -62,6 +66,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 					Valid: true,
 				},
 				CachedResponse: cachedResponse,
+				ExpiresAt:      time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 		},
 	}
@@ -95,6 +100,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 				RequestStatusID:    types.StatusComplete,
 				CachedResponseCode: nil,
 				CachedResponse:     nil,
+				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
@@ -105,6 +111,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 					Valid: false,
 				},
 				CachedResponse: make([]byte, 0),
+				ExpiresAt:      time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 		},
 		{
@@ -115,6 +122,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 				RequestStatusID:    types.StatusFailed,
 				CachedResponseCode: &cachedResponseCode,
 				CachedResponse:     &cachedResponse,
+				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
@@ -125,6 +133,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 					Valid: true,
 				},
 				CachedResponse: cachedResponse,
+				ExpiresAt:      time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 		},
 	}

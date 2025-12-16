@@ -8,6 +8,10 @@ import (
 // IdempotentRequestFromDomain converts the domain representation of a
 // request into the specialized database type.
 func IdempotentRequestFromDomain(domainRequest *domain.IdempotentRequest) *IdempotentRequest {
+	if domainRequest == nil {
+		return nil
+	}
+
 	var cachedResponseCode pgtype.Int4
 	if domainRequest.CachedResponseCode != nil {
 		cachedResponseCode = pgtype.Int4{
@@ -41,6 +45,10 @@ func IdempotentRequestFromDomain(domainRequest *domain.IdempotentRequest) *Idemp
 // IdempotentRequestToDomain converts the specialized database
 // representation of a request into the domain type.
 func IdempotentRequestToDomain(dbRequest *IdempotentRequest) *domain.IdempotentRequest {
+	if dbRequest == nil {
+		return nil
+	}
+
 	var cachedResponseCode *int32
 	if dbRequest.CachedResponseCode.Valid {
 		code := dbRequest.CachedResponseCode.Int32

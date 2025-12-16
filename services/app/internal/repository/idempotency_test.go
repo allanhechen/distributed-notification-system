@@ -119,8 +119,8 @@ func TestIdempotencyRepository(t *testing.T) {
 		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
 			RequestID:          randomID,
 			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: &cachedResponseCode,
-			CachedResponse:     &b,
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)
@@ -140,8 +140,8 @@ func TestIdempotencyRepository(t *testing.T) {
 		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
 			RequestID:          reqID,
 			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: &cachedResponseCode,
-			CachedResponse:     &b,
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)
@@ -161,8 +161,8 @@ func TestIdempotencyRepository(t *testing.T) {
 		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
 			RequestID:          reqID,
 			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: &cachedResponseCode,
-			CachedResponse:     &b,
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
 		})
 
 		assert.ErrorIs(t, err, ErrNoRows)
@@ -183,8 +183,8 @@ func TestIdempotencyRepository(t *testing.T) {
 		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
 			RequestID:          reqID,
 			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: &cachedResponseCode,
-			CachedResponse:     &b,
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
 		})
 
 		assert.NoError(t, err)

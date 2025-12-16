@@ -1,3 +1,5 @@
+-- request_status_id: 0 = Processing, 1 = Complete, 2 = Failed
+
 -- name: GetRequest :one
 SELECT * FROM idempotent_requests
 WHERE request_id = $1;
