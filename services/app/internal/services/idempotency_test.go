@@ -112,7 +112,7 @@ func (f *fakeRepository) UpdateRequestReprocess(_ context.Context, params reposi
 	now := time.Now().UTC()
 	if (request.RequestStatusID == types.StatusComplete) ||
 		(request.RequestStatusID == types.StatusProcessing && !now.After(request.ExpiresAt)) {
-		return services.ErrConflict
+		return repository.ErrNoRows
 	}
 
 	f.mockDatabase[params.RequestID] = domain.IdempotentRequest{
