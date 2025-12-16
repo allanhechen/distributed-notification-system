@@ -89,8 +89,8 @@ func (f *fakeRepository) UpdateRequestSuccess(_ context.Context, params reposito
 		RequestID:          request.RequestID,
 		UserID:             request.UserID,
 		RequestStatusID:    types.StatusComplete,
-		CachedResponseCode: params.CachedResponseCode,
-		CachedResponse:     params.CachedResponse,
+		CachedResponseCode: &params.CachedResponseCode,
+		CachedResponse:     &params.CachedResponse,
 		ExpiresAt:          params.ExpiresAt,
 	}
 
