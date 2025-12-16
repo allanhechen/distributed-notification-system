@@ -41,10 +41,12 @@ func (q *Queries) CreateRequest(ctx context.Context, arg CreateRequestParams) er
 }
 
 const getRequest = `-- name: GetRequest :one
+
 SELECT request_id, user_id, request_status_id, cached_response_code, cached_response, expires_at FROM idempotent_requests
 WHERE request_id = $1
 `
 
+// request_status_id: 0 = Processing, 1 = Complete, 2 = Failed
 func (q *Queries) GetRequest(ctx context.Context, requestID uuid.UUID) (IdempotentRequest, error) {
 	row := q.db.QueryRow(ctx, getRequest, requestID)
 	var i IdempotentRequest
