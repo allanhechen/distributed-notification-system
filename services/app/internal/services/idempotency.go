@@ -15,7 +15,7 @@ import (
 type IdempotencyService interface {
 	GetExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
 	BeginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
-	UpdateRequestSuccess(ctx context.Context, requestId uuid.UUID) error
+	UpdateRequestSuccess(context.Context, UpdateRequestSuccessParams) error
 	UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error
 }
 
@@ -23,6 +23,13 @@ type IdempotencyService interface {
 // IdempotencyService.
 type IdempotencyServiceImplementation struct {
 	repo repository.IdempotencyRepo
+}
+
+// NewIdempotencyService creates a new IdempotencyService.
+func NewIdempotencyService(repo repository.IdempotencyRepo) IdempotencyService {
+	return &IdempotencyServiceImplementation{
+		repo: repo,
+	}
 }
 
 // GetExistingRequest finds the request with the given requestId. Simple
@@ -52,7 +59,7 @@ func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Contex
 //
 // In all situations, ErrConflict is returned.
 func (i *IdempotencyServiceImplementation) BeginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error {
-	newExpiryTime := time.Now().Add(120 * time.Second).UTC()
+	newExpiryTime := time.Now().Add(domain.ShortRequestTtl).UTC()
 	newRequest := repository.CreateRequestParams{
 		RequestID:       requestId,
 		UserID:          userId,
@@ -77,23 +84,31 @@ func (i *IdempotencyServiceImplementation) BeginProcessingRequest(ctx context.Co
 			}
 
 			return nil
-		} else {
-			return err
 		}
+
+		return err
 	}
 
 	return nil
 }
 
+type UpdateRequestSuccessParams struct {
+	RequestID          uuid.UUID
+	CachedResponseCode int32
+	CachedResponse     []byte
+}
+
 // UpdateRequestSuccess marks the status of the given requestId to
 // success.
 //
-// Returns repository.ErrNoRows no rows were updated.
-func (i IdempotencyServiceImplementation) UpdateRequestSuccess(ctx context.Context, requestId uuid.UUID) error {
-	newExpiryTime := time.Now().Add(24 * time.Hour).UTC()
+// Returns ErrNotFound no rows were updated.
+func (i *IdempotencyServiceImplementation) UpdateRequestSuccess(ctx context.Context, params UpdateRequestSuccessParams) error {
+	newExpiryTime := time.Now().Add(domain.LongRequestTtl).UTC()
 	updateRequestSuccess := repository.UpdateRequestSuccessParams{
-		RequestID: requestId,
-		ExpiresAt: newExpiryTime,
+		RequestID:          params.RequestID,
+		CachedResponseCode: params.CachedResponseCode,
+		CachedResponse:     params.CachedResponse,
+		ExpiresAt:          newExpiryTime,
 	}
 	err := i.repo.UpdateRequestSuccess(ctx, updateRequestSuccess)
 
@@ -107,11 +122,11 @@ func (i IdempotencyServiceImplementation) UpdateRequestSuccess(ctx context.Conte
 	return nil
 }
 
-// UpdateRequestSuccess marks the status of the given requestId to
+// UpdateRequestFailed marks the status of the given requestId to
 // failed.
 //
-// Returns repository.ErrNoRows no rows were updated.
-func (i IdempotencyServiceImplementation) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
+// Returns ErrNotFound no rows were updated.
+func (i *IdempotencyServiceImplementation) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
 	err := i.repo.UpdateRequestFailed(ctx, requestId)
 
 	if err != nil {

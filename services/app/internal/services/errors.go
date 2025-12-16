@@ -6,5 +6,5 @@ import "errors"
 // repository
 var ErrNotFound = errors.New("service: not found")
 
-// ErrConflict signifies that a conflict
+// ErrConflict signifies that a conflict occurred with another request
 var ErrConflict = errors.New("service: conflict with other request")
