@@ -31,6 +31,13 @@ type PgxIdempotency struct {
 	pool *pgxpool.Pool
 }
 
+// NewIdempotencyRepo creates a new IdempotencyRepo.
+func NewIdempotencyRepo(pool *pgxpool.Pool) IdempotencyRepo {
+	return &PgxIdempotency{
+		pool: pool,
+	}
+}
+
 // GetStoredRequest checks the database for a stored request with the
 // given requestId.
 //
