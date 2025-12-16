@@ -2,10 +2,10 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/testutils"
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
@@ -34,12 +34,20 @@ func TestIdempotencyRepository(t *testing.T) {
 	}
 
 	reqID := uuid.New()
-	newRequest := db.CreateRequestStatusParams{
+	newRequest := CreateRequestParams{
 		RequestID:       reqID,
 		UserID:          uuid.New(),
 		RequestStatusID: types.StatusProcessing,
 		ExpiresAt:       time.Now().Add(120 * time.Second).Truncate(time.Microsecond).UTC(),
 	}
+
+	payload := map[string]any{
+		"key": 1234,
+	}
+
+	b, err := json.Marshal(payload)
+	require.NoError(t, err)
+	cachedResponseCode := int32(200)
 
 	t.Run("Create and Get Success", func(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
@@ -66,5 +74,205 @@ func TestIdempotencyRepository(t *testing.T) {
 		_, err := repo.GetStoredRequest(ctx, randomID)
 
 		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Mark Non-Existent Request as Failed", func(t *testing.T) {
+		randomID := uuid.New()
+		err := repo.UpdateRequestFailed(ctx, randomID)
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Mark Non-Expired Request as Failed", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusProcessing,
+			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
+		}
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestFailed(ctx, reqID)
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Mark Expired Request as Failed", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusProcessing,
+			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
+		}
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestFailed(ctx, reqID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Mark Non-Existent Request as Success", func(t *testing.T) {
+
+		randomID := uuid.New()
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          randomID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
+		})
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Mark Expired Request as Success", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusProcessing,
+			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
+		}
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          reqID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
+		})
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Mark Non-Processing Request as Success", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusFailed, // already terminal
+			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
+		}
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          reqID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
+		})
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Mark Processing Request as Success", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusProcessing,
+			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
+		}
+
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
+			RequestID:          reqID,
+			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
+			CachedResponseCode: cachedResponseCode,
+			CachedResponse:     b,
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Reprocess Non-Existent Request", func(t *testing.T) {
+		randomID := uuid.New()
+
+		err := repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
+			RequestID: randomID,
+		})
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Reprocess Non-Expired Processing Request", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusProcessing,
+			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
+		}
+
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
+			RequestID: reqID,
+		})
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Reprocess Succeeded Request", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusComplete,
+			ExpiresAt:       time.Now().Add(-120 * time.Second).UTC(),
+		}
+
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
+			RequestID: reqID,
+		})
+
+		assert.ErrorIs(t, err, ErrNoRows)
+	})
+
+	t.Run("Reprocess Failed Request", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusFailed,
+			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
+		}
+
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
+			RequestID: reqID,
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Reprocess Expired Processing Request", func(t *testing.T) {
+		reqID := uuid.New()
+		newRequest := CreateRequestParams{
+			RequestID:       reqID,
+			UserID:          uuid.New(),
+			RequestStatusID: types.StatusProcessing,
+			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
+		}
+
+		err := repo.CreateStoredRequest(ctx, newRequest)
+		require.NoError(t, err)
+
+		err = repo.UpdateRequestReprocess(ctx, UpdateRequestReprocessParams{
+			RequestID: reqID,
+		})
+
+		assert.NoError(t, err)
 	})
 }

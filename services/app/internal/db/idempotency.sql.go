@@ -11,9 +11,10 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createRequestStatus = `-- name: CreateRequestStatus :exec
+const createRequest = `-- name: CreateRequest :exec
 INSERT INTO idempotent_requests(
     request_id,
     user_id,
@@ -22,15 +23,15 @@ INSERT INTO idempotent_requests(
 ) VALUES ($1, $2, $3, $4)
 `
 
-type CreateRequestStatusParams struct {
+type CreateRequestParams struct {
 	RequestID       uuid.UUID           `json:"request_id"`
 	UserID          uuid.UUID           `json:"user_id"`
 	RequestStatusID types.RequestStatus `json:"request_status_id"`
 	ExpiresAt       time.Time           `json:"expires_at"`
 }
 
-func (q *Queries) CreateRequestStatus(ctx context.Context, arg CreateRequestStatusParams) error {
-	_, err := q.db.Exec(ctx, createRequestStatus,
+func (q *Queries) CreateRequest(ctx context.Context, arg CreateRequestParams) error {
+	_, err := q.db.Exec(ctx, createRequest,
 		arg.RequestID,
 		arg.UserID,
 		arg.RequestStatusID,
@@ -39,13 +40,15 @@ func (q *Queries) CreateRequestStatus(ctx context.Context, arg CreateRequestStat
 	return err
 }
 
-const getRequestStatus = `-- name: GetRequestStatus :one
+const getRequest = `-- name: GetRequest :one
+
 SELECT request_id, user_id, request_status_id, cached_response_code, cached_response, expires_at FROM idempotent_requests
 WHERE request_id = $1
 `
 
-func (q *Queries) GetRequestStatus(ctx context.Context, requestID uuid.UUID) (IdempotentRequest, error) {
-	row := q.db.QueryRow(ctx, getRequestStatus, requestID)
+// request_status_id: 0 = Processing, 1 = Complete, 2 = Failed
+func (q *Queries) GetRequest(ctx context.Context, requestID uuid.UUID) (IdempotentRequest, error) {
+	row := q.db.QueryRow(ctx, getRequest, requestID)
 	var i IdempotentRequest
 	err := row.Scan(
 		&i.RequestID,
@@ -56,4 +59,69 @@ func (q *Queries) GetRequestStatus(ctx context.Context, requestID uuid.UUID) (Id
 		&i.ExpiresAt,
 	)
 	return i, err
+}
+
+const updateRequestFailed = `-- name: UpdateRequestFailed :execrows
+UPDATE idempotent_requests SET
+    request_status_id = 2
+WHERE request_id = $1 AND request_status_id = 0 AND expires_at < NOW()
+`
+
+func (q *Queries) UpdateRequestFailed(ctx context.Context, requestID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, updateRequestFailed, requestID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateRequestReprocess = `-- name: UpdateRequestReprocess :execrows
+UPDATE idempotent_requests SET
+    request_status_id = 0,
+    expires_at = $1
+WHERE request_id = $2 AND
+    (request_status_id = 2 OR
+    (request_status_id = 0 AND expires_at < NOW()))
+`
+
+type UpdateRequestReprocessParams struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	RequestID uuid.UUID `json:"request_id"`
+}
+
+func (q *Queries) UpdateRequestReprocess(ctx context.Context, arg UpdateRequestReprocessParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateRequestReprocess, arg.ExpiresAt, arg.RequestID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateRequestSuccess = `-- name: UpdateRequestSuccess :execrows
+UPDATE idempotent_requests SET
+    request_status_id = 1,
+    expires_at = $1,
+    cached_response_code = $2,
+    cached_response = $3
+WHERE request_id = $4 AND request_status_id = 0 AND expires_at > NOW()
+`
+
+type UpdateRequestSuccessParams struct {
+	ExpiresAt          time.Time   `json:"expires_at"`
+	CachedResponseCode pgtype.Int4 `json:"cached_response_code"`
+	CachedResponse     []byte      `json:"cached_response"`
+	RequestID          uuid.UUID   `json:"request_id"`
+}
+
+func (q *Queries) UpdateRequestSuccess(ctx context.Context, arg UpdateRequestSuccessParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateRequestSuccess,
+		arg.ExpiresAt,
+		arg.CachedResponseCode,
+		arg.CachedResponse,
+		arg.RequestID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
