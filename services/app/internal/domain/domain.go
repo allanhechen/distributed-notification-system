@@ -17,3 +17,9 @@ type IdempotentRequest struct {
 	CachedResponse     *[]byte             `json:"cached_response"`
 	ExpiresAt          time.Time           `json:"expires_at"`
 }
+
+// ShortRequestTtl is the TTL associated with processing requests
+var ShortRequestTtl = 120 * time.Second
+
+// LongRequestTtl is the TTL associated with storing processed requests
+var LongRequestTtl = 24 * time.Hour
