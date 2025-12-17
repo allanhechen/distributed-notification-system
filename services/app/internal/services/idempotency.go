@@ -36,6 +36,8 @@ func NewIdempotencyService(repo repository.IdempotencyRepo) IdempotencyService {
 // wrapper around the repository method.
 //
 // Returns ErrNotFound if no rows were reported by the repository.
+// Returns ErrExpired if the found row was marked expired.
+// Returns ErrFailed if the found row was marked failed.
 func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
 	request, err := i.repo.GetStoredRequest(ctx, requestId)
 	if err != nil {
@@ -44,6 +46,14 @@ func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Contex
 		}
 
 		return nil, err
+	}
+
+	if request.RequestStatusID == types.StatusFailed {
+		return nil, ErrFailed
+	}
+
+	if time.Now().UTC().After(request.ExpiresAt) {
+		return nil, ErrExpired
 	}
 
 	return request, nil
