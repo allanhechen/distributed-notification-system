@@ -149,7 +149,7 @@ func TestGetExistingRequest_NonExistent(t *testing.T) {
 	ctx := context.Background()
 
 	nonExistentRequest := uuid.New()
-	_, err := service.GetExistingRequest(ctx, nonExistentRequest)
+	_, err := service.getExistingRequest(ctx, nonExistentRequest)
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
@@ -166,7 +166,7 @@ func TestGetExistingRequest_Existent(t *testing.T) {
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
-	request, err := service.GetExistingRequest(ctx, fakeRequest.RequestID)
+	request, err := service.getExistingRequest(ctx, fakeRequest.RequestID)
 	assert.NoError(t, err)
 	assert.Equal(t, fakeRequest, request)
 }
@@ -185,7 +185,7 @@ func TestGetExistingRequest_Failed(t *testing.T) {
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
-	_, err := service.GetExistingRequest(ctx, fakeRequest.RequestID)
+	_, err := service.getExistingRequest(ctx, fakeRequest.RequestID)
 	assert.ErrorIs(t, err, ErrFailed)
 }
 
@@ -203,7 +203,7 @@ func TestGetExistingRequest_Expired(t *testing.T) {
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
-	_, err := service.GetExistingRequest(ctx, fakeRequest.RequestID)
+	_, err := service.getExistingRequest(ctx, fakeRequest.RequestID)
 	assert.ErrorIs(t, err, ErrExpired)
 }
 
@@ -216,7 +216,7 @@ func TestBeginProcessingRequest_NewRequest(t *testing.T) {
 	requestId := testutil.RequestId
 	userId := testutil.UserId
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.NoError(t, err)
 
 	request, ok := repo.mockDatabase[requestId]
@@ -240,7 +240,7 @@ func TestBeginProcessingRequest_ExpiredRequest(t *testing.T) {
 	fakeRequest.RequestStatusID = types.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.NoError(t, err)
 
 	request, ok := repo.mockDatabase[requestId]
@@ -268,7 +268,7 @@ func TestBeginProcessingRequest_AlreadyComplete(t *testing.T) {
 	fakeRequest.RequestStatusID = types.StatusComplete
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.ErrorIs(t, err, ErrConflict)
 }
 
@@ -290,7 +290,7 @@ func TestBeginProcessingRequest_NotExpired(t *testing.T) {
 	fakeRequest.RequestStatusID = types.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.ErrorIs(t, err, ErrConflict)
 }
 
@@ -305,7 +305,7 @@ func TestBeginProcessingRequest_OtherConflict(t *testing.T) {
 	requestId := testutil.RequestId
 	userId := testutil.UserId
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.ErrorIs(t, err, ErrConflict)
 }
 

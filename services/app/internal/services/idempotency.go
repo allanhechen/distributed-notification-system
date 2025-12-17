@@ -13,8 +13,8 @@ import (
 
 // IdempotencyService is the service that handles request idempotency.
 type IdempotencyService interface {
-	GetExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
-	BeginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
+	getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
+	beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
 	UpdateRequestSuccess(context.Context, UpdateRequestSuccessParams) error
 	UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error
 }
@@ -32,13 +32,13 @@ func NewIdempotencyService(repo repository.IdempotencyRepo) IdempotencyService {
 	}
 }
 
-// GetExistingRequest finds the request with the given requestId. Simple
+// getExistingRequest finds the request with the given requestId. Simple
 // wrapper around the repository method.
 //
 // Returns ErrNotFound if no rows were reported by the repository.
 // Returns ErrExpired if the found row was marked expired.
 // Returns ErrFailed if the found row was marked failed.
-func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
+func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
 	request, err := i.repo.GetStoredRequest(ctx, requestId)
 	if err != nil {
 		if errors.Is(err, repository.ErrNoRows) {
@@ -59,7 +59,7 @@ func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Contex
 	return request, nil
 }
 
-// BeginProcessingRequest begins processing of the given requestId. If
+// beginProcessingRequest begins processing of the given requestId. If
 // inserting a stored request returns repository.ErrAlreadyExists, it
 // tries to update the same row. If this this fails, one of the following
 // has occurred:
@@ -68,7 +68,7 @@ func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Contex
 // 3. Previous request is already marked complete
 //
 // In all situations, ErrConflict is returned.
-func (i *IdempotencyServiceImplementation) BeginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error {
+func (i *IdempotencyServiceImplementation) beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error {
 	newExpiryTime := time.Now().Add(domain.ShortRequestTtl).UTC()
 	newRequest := repository.CreateRequestParams{
 		RequestID:       requestId,
@@ -114,13 +114,13 @@ type UpdateRequestSuccessParams struct {
 // Returns ErrNotFound no rows were updated.
 func (i *IdempotencyServiceImplementation) UpdateRequestSuccess(ctx context.Context, params UpdateRequestSuccessParams) error {
 	newExpiryTime := time.Now().Add(domain.LongRequestTtl).UTC()
-	updateRequestSuccess := repository.UpdateRequestSuccessParams{
+	UpdateRequestSuccess := repository.UpdateRequestSuccessParams{
 		RequestID:          params.RequestID,
 		CachedResponseCode: params.CachedResponseCode,
 		CachedResponse:     params.CachedResponse,
 		ExpiresAt:          newExpiryTime,
 	}
-	err := i.repo.UpdateRequestSuccess(ctx, updateRequestSuccess)
+	err := i.repo.UpdateRequestSuccess(ctx, UpdateRequestSuccess)
 
 	if err != nil {
 		if errors.Is(err, repository.ErrNoRows) {
