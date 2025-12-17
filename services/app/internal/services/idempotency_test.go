@@ -141,6 +141,76 @@ func (f *fakeRepository) UpdateRequestReprocess(_ context.Context, params reposi
 	return nil
 }
 
+func TestGetOrBeginRequest_NonExistent(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	nonExistentRequest := uuid.New()
+	userId := testutil.UserId
+	_, at, err := service.GetOrBeginRequest(ctx, nonExistentRequest, userId)
+	assert.NoError(t, err)
+	assert.Equal(t, Proceed, at)
+}
+
+func TestGetOrBeginRequest_AlreadyProcessing(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+	userId := testutil.UserId
+
+	_, _, err := service.GetOrBeginRequest(ctx, fakeRequest.RequestID, userId)
+	assert.ErrorIs(t, err, ErrConflict)
+}
+
+func TestGetOrBeginRequest_CachedInvalid(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+	userId := testutil.UserId
+
+	_, at, err := service.GetOrBeginRequest(ctx, fakeRequest.RequestID, userId)
+	assert.NoError(t, err)
+	assert.Equal(t, Reprocess, at)
+}
+
+func TestGetOrBeginRequest_UpdateConflict(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
+		updateProcessingErr: repository.ErrNoRows, // leads to ErrConflict from beginProcessingRequest
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+	userId := testutil.UserId
+
+	_, _, err := service.GetOrBeginRequest(ctx, fakeRequest.RequestID, userId)
+	assert.ErrorIs(t, err, ErrConflict)
+}
+
 func TestGetExistingRequest_NonExistent(t *testing.T) {
 	repo := fakeRepository{
 		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
@@ -163,6 +233,7 @@ func TestGetExistingRequest_Existent(t *testing.T) {
 	// insert a new request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusComplete
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service

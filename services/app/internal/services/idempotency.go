@@ -11,8 +11,17 @@ import (
 	"github.com/google/uuid"
 )
 
+type IdempotencyActionType int
+
+const (
+	Proceed IdempotencyActionType = iota
+	Reprocess
+	Replay
+)
+
 // IdempotencyService is the service that handles request idempotency.
 type IdempotencyService interface {
+	GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error)
 	getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
 	beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
 	UpdateRequestSuccess(context.Context, UpdateRequestSuccessParams) error
@@ -32,10 +41,60 @@ func NewIdempotencyService(repo repository.IdempotencyRepo) IdempotencyService {
 	}
 }
 
+// GetOrBeginRequest either retrieves or begins the request with the
+// given information.
+//
+// 1. If the request already exists, the request is returned with a Replay
+// command and a nil error.
+//
+// 2. If the request is expired or failed, the request is marked as
+// processing, a Reprocess command with a nil error is returned.
+//
+// 3.If the request is not found, the request is marked as processing, a
+// Proceed command with a nil error is returned.
+//
+// 4. If the request is found but still processing and not expired, an
+// ErrConflict is returned.
+//
+// If ErrConflict is returned while marking the request as processing, it
+// is returned with no other values.
+func (i *IdempotencyServiceImplementation) GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error) {
+	request, err := i.getExistingRequest(ctx, requestId)
+	if err == nil {
+		return request, Replay, nil
+	}
+
+	var at IdempotencyActionType
+
+	switch {
+	case errors.Is(err, ErrExpired), errors.Is(err, ErrFailed):
+		at = Reprocess
+	case errors.Is(err, ErrNotFound):
+		at = Proceed
+	case errors.Is(err, ErrConflict):
+		return nil, at, err
+	default:
+		return nil, at, err
+	}
+
+	err = i.beginProcessingRequest(ctx, requestId, userId)
+
+	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			return nil, at, ErrConflict
+		}
+
+		return nil, at, err
+	}
+
+	return nil, at, nil
+}
+
 // getExistingRequest finds the request with the given requestId. Simple
 // wrapper around the repository method.
 //
 // Returns ErrNotFound if no rows were reported by the repository.
+// Returns ErrConflict if the retrieved request is still being processed.
 // Returns ErrExpired if the found row was marked expired.
 // Returns ErrFailed if the found row was marked failed.
 func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
@@ -50,6 +109,10 @@ func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Contex
 
 	if request.RequestStatusID == types.StatusFailed {
 		return nil, ErrFailed
+	}
+
+	if request.ExpiresAt.After(time.Now().UTC()) && request.RequestStatusID == types.StatusProcessing {
+		return nil, ErrConflict
 	}
 
 	if time.Now().UTC().After(request.ExpiresAt) {
