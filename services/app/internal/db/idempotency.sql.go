@@ -41,12 +41,10 @@ func (q *Queries) CreateRequest(ctx context.Context, arg CreateRequestParams) er
 }
 
 const getRequest = `-- name: GetRequest :one
-
 SELECT request_id, user_id, request_status_id, cached_response_code, cached_response, expires_at FROM idempotent_requests
 WHERE request_id = $1
 `
 
-// request_status_id: 0 = Processing, 1 = Complete, 2 = Failed
 func (q *Queries) GetRequest(ctx context.Context, requestID uuid.UUID) (IdempotentRequest, error) {
 	row := q.db.QueryRow(ctx, getRequest, requestID)
 	var i IdempotentRequest
@@ -64,7 +62,7 @@ func (q *Queries) GetRequest(ctx context.Context, requestID uuid.UUID) (Idempote
 const updateRequestFailed = `-- name: UpdateRequestFailed :execrows
 UPDATE idempotent_requests SET
     request_status_id = 2
-WHERE request_id = $1 AND request_status_id = 0 AND expires_at < NOW()
+WHERE request_id = $1 AND request_status_id = 0
 `
 
 func (q *Queries) UpdateRequestFailed(ctx context.Context, requestID uuid.UUID) (int64, error) {

@@ -1,5 +1,3 @@
--- request_status_id: 0 = Processing, 1 = Complete, 2 = Failed
-
 -- name: GetRequest :one
 SELECT * FROM idempotent_requests
 WHERE request_id = $1;
@@ -15,7 +13,7 @@ INSERT INTO idempotent_requests(
 -- name: UpdateRequestFailed :execrows
 UPDATE idempotent_requests SET
     request_status_id = 2
-WHERE request_id = $1 AND request_status_id = 0 AND expires_at < NOW();
+WHERE request_id = $1 AND request_status_id = 0;
 
 -- name: UpdateRequestSuccess :execrows
 UPDATE idempotent_requests SET
