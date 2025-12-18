@@ -42,7 +42,7 @@ const docTemplate = `{
             "get": {
                 "description": "Endpoint to quickly verify that the server is reachable",
                 "produces": [
-                    "text/plain"
+                    "application/json"
                 ],
                 "tags": [
                     "health"
@@ -50,9 +50,12 @@ const docTemplate = `{
                 "summary": "Test server connectivity",
                 "responses": {
                     "200": {
-                        "description": "pong!",
+                        "description": "pong response",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }

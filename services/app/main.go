@@ -12,8 +12,13 @@ import (
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/app/api"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal/repository"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal/services"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/lmittmann/tint"
 )
@@ -86,25 +91,24 @@ func configureLogger(config *Config) *os.File {
 	return fileHandler
 }
 
-func configureDatabase(config *Config) (*pgx.Conn, context.Context) {
+func configureDatabase(config *Config) *pgxpool.Pool {
 	// context only for database connections
-	connCtx, connCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer connCancel()
+	poolCtx, poolCancel := context.WithTimeout(context.Background(), domain.DatabaseTimeout)
+	defer poolCancel()
 
-	conn, err := pgx.Connect(connCtx, config.databaseUrl)
+	pool, err := pgxpool.New(poolCtx, config.databaseUrl)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
 
-	if err := conn.Ping(connCtx); err != nil {
+	if err := pool.Ping(poolCtx); err != nil {
 		slog.Error("failed to ping database", "error", err)
-		conn.Close(context.Background())
+		pool.Close()
 		os.Exit(1)
 	}
 
-	appCtx := context.Background()
-	return conn, appCtx
+	return pool
 }
 
 // @title		Distributed Notification Server
@@ -113,13 +117,20 @@ func main() {
 	config := loadConfig()
 
 	f := configureLogger(config)
-	conn, ctx := configureDatabase(config)
+	conn := configureDatabase(config)
 	if f != nil {
 		defer f.Close()
 	}
-	defer conn.Close(ctx)
+	defer conn.Close()
 
-	apiHandler := api.Api()
+	idempotencyRepo := repository.NewIdempotencyRepo(conn)
+	idempotencyService := services.NewIdempotencyService(idempotencyRepo)
+	idempotentRequestHandler := api.NewIdempotentRequestHandler(idempotencyService)
+	idempotencyLayer := internal.NewConcreteIdempotencyLayer(conn, func(q db.Querier) repository.IdempotencyLayerRepo {
+		return repository.NewIdempotencyLayerRepo(q)
+	})
+
+	apiHandler := api.Api(idempotentRequestHandler, idempotencyLayer)
 	slog.Info("server starting on :8080")
 	if err := http.ListenAndServe(":8080", apiHandler); err != nil {
 		slog.Error("failed to start HTTP server", "error", err)
