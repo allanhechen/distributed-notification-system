@@ -132,6 +132,7 @@ func (c *ConcreteIdempotencyLayer) HandleFailure(requestId uuid.UUID) {
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			slog.Error("idempotency: setting failed request status timed out", "requestId", requestId)
+			return
 		}
 
 		slog.Error("idempotency: setting request status failed for other reason", "requestId", requestId, "error", err)

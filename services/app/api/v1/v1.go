@@ -50,8 +50,9 @@ func ping(idempotencyLayer internal.IdempotencyLayer) http.HandlerFunc {
 		})
 		if err != nil {
 			if !errors.Is(err, internal.ErrUser) {
-				logger.Error("handler: error caused by user", "error", err)
+				logger.Error("handler: error caused by client", "error", err)
 				idempotencyLayer.HandleFailure(requestId)
+				w.WriteHeader(status)
 				return
 			}
 		}
