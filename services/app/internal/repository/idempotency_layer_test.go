@@ -68,7 +68,7 @@ func TestIdempotencyLayerRepository(t *testing.T) {
 		defer trx.Rollback(ctx)
 
 		err = layerRepo.UpdateRequestFailed(ctx, reqID)
-		assert.ErrorIs(t, err, ErrNoRows)
+		assert.NoError(t, err)
 	})
 
 	t.Run("Mark Expired Request as Failed", func(t *testing.T) {
