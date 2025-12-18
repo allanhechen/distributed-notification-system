@@ -43,7 +43,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 					Int32: 0,
 					Valid: false,
 				},
-				CachedResponse: make([]byte, 0),
+				CachedResponse: nil,
 				ExpiresAt:      time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			},
 		},
