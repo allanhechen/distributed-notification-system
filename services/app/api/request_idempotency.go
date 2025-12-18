@@ -9,7 +9,6 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/services"
 	"github.com/allanhechen/distributed-notification-system/utils"
-	"github.com/google/uuid"
 )
 
 type IdempotentRequestHandler struct {
@@ -26,21 +25,14 @@ func NewIdempotentRequestHandler(service services.IdempotencyService) *Idempoten
 func (i *IdempotentRequestHandler) HandleRequest(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
-		logger, ok := ctx.Value(utils.Logger).(*slog.Logger)
-		if !ok {
-			slog.Error("logger from context is the incorrect type")
+		fromCtx, err := utils.GetValuesFromContext(ctx)
+		if err != nil {
+			slog.Error("idempotency: failed to get values from request context")
 			return
 		}
-		requestId, ok := ctx.Value(utils.RequestIdKey).(uuid.UUID)
-		if !ok {
-			logger.Error("requestId from context is the incorrect type")
-			return
-		}
-		userId, ok := ctx.Value(utils.UserIdKey).(uuid.UUID)
-		if !ok {
-			logger.Error("userId from context is the incorrect type")
-			return
-		}
+		logger := fromCtx.Logger
+		requestId := fromCtx.RequestId
+		userId := fromCtx.UserId
 
 		request, action, err := i.service.GetOrBeginRequest(ctx, requestId, userId)
 		if err != nil {
