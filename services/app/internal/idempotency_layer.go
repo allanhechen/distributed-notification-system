@@ -56,7 +56,7 @@ func (c *ConcreteIdempotencyLayer) Handle(ctx context.Context, requestId uuid.UU
 	fromCtx, err := utils.GetValuesFromContext(ctx)
 	if err != nil {
 		slog.Error("idempotency: failed to get values from request context")
-		return 500, nil, err
+		return internalFailureStatus, nil, err
 	}
 	logger := fromCtx.Logger
 
@@ -78,13 +78,13 @@ func (c *ConcreteIdempotencyLayer) Handle(ctx context.Context, requestId uuid.UU
 		if rollbackErr != nil {
 			logger.Error("idempotency: error rolling back the transaction", "error", rollbackErr)
 		}
-		return 500, response, err
+		return internalFailureStatus, nil, err
 	}
 	if response != nil && !json.Valid(response) {
-		return 500, nil, ErrNotJson
+		return internalFailureStatus, nil, ErrNotJson
 	}
 	if !isValidHTTPStatus(status) {
-		return 500, nil, ErrInvalidStatus
+		return internalFailureStatus, nil, ErrInvalidStatus
 	}
 	if status >= 400 && status < 500 {
 		return status, response, ErrUser
