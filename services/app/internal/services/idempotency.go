@@ -24,8 +24,6 @@ type IdempotencyService interface {
 	GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error)
 	getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
 	beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
-	UpdateRequestSuccess(context.Context, UpdateRequestSuccessParams) error
-	UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error
 }
 
 // IdempotencyServiceImplementation is the concrete implementation of
@@ -162,51 +160,5 @@ func (i *IdempotencyServiceImplementation) beginProcessingRequest(ctx context.Co
 		return err
 	}
 
-	return nil
-}
-
-type UpdateRequestSuccessParams struct {
-	RequestID          uuid.UUID
-	CachedResponseCode int32
-	CachedResponse     []byte
-}
-
-// UpdateRequestSuccess marks the status of the given requestId to
-// success.
-//
-// Returns ErrNotFound no rows were updated.
-func (i *IdempotencyServiceImplementation) UpdateRequestSuccess(ctx context.Context, params UpdateRequestSuccessParams) error {
-	newExpiryTime := time.Now().Add(domain.LongRequestTtl).UTC()
-	UpdateRequestSuccess := repository.UpdateRequestSuccessParams{
-		RequestID:          params.RequestID,
-		CachedResponseCode: params.CachedResponseCode,
-		CachedResponse:     params.CachedResponse,
-		ExpiresAt:          newExpiryTime,
-	}
-	err := i.repo.UpdateRequestSuccess(ctx, UpdateRequestSuccess)
-
-	if err != nil {
-		if errors.Is(err, repository.ErrNoRows) {
-			return ErrNotFound
-		}
-		return err
-	}
-
-	return nil
-}
-
-// UpdateRequestFailed marks the status of the given requestId to
-// failed.
-//
-// Returns ErrNotFound no rows were updated.
-func (i *IdempotencyServiceImplementation) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
-	err := i.repo.UpdateRequestFailed(ctx, requestId)
-
-	if err != nil {
-		if errors.Is(err, repository.ErrNoRows) {
-			return ErrNotFound
-		}
-		return err
-	}
 	return nil
 }

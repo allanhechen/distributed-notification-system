@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -13,21 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
-
-var payload = map[string]any{
-	"key": 1234,
-}
-var b, _ = json.Marshal(payload)
-
-// GetUpdateRequestSuccessParams returns an UpdateRequestSuccessParams to
-// be used in tests
-func GetUpdateRequestSuccessParams() *UpdateRequestSuccessParams {
-	return &UpdateRequestSuccessParams{
-		RequestID:          testutil.RequestId,
-		CachedResponseCode: int32(200),
-		CachedResponse:     b,
-	}
-}
 
 type fakeRepository struct {
 	mockDatabase        map[uuid.UUID]domain.IdempotentRequest
@@ -378,85 +362,4 @@ func TestBeginProcessingRequest_OtherConflict(t *testing.T) {
 
 	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.ErrorIs(t, err, ErrConflict)
-}
-
-func TestUpdateRequestSuccess_Existent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := NewIdempotencyService(&repo)
-	ctx := context.Background()
-	requestId := testutil.RequestId
-
-	// insert a processing request
-	initialExpiry := time.Now().Add(1 * time.Second).UTC()
-	fakeRequest := testutil.GetIdempotentRequest()
-	fakeRequest.ExpiresAt = initialExpiry
-	fakeRequest.RequestStatusID = types.StatusProcessing
-	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
-
-	fakeRequestUpdate := GetUpdateRequestSuccessParams()
-
-	err := service.UpdateRequestSuccess(ctx, *fakeRequestUpdate)
-	assert.NoError(t, err)
-
-	request, ok := repo.mockDatabase[requestId]
-	assert.True(t, ok, "expected request to remain in the database")
-	assert.Equal(t, types.StatusComplete, request.RequestStatusID)
-	assert.True(t, request.ExpiresAt.After(initialExpiry), "ExpiresAt should be updated to a later time")
-}
-
-func TestUpdateRequestSuccess_NonExistent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := NewIdempotencyService(&repo)
-	ctx := context.Background()
-	fakeRequestUpdate := GetUpdateRequestSuccessParams()
-
-	err := service.UpdateRequestSuccess(ctx, *fakeRequestUpdate)
-	assert.ErrorIs(t, err, ErrNotFound)
-}
-
-func TestUpdateRequestFailed_Existent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := NewIdempotencyService(&repo)
-	ctx := context.Background()
-	requestId := testutil.RequestId
-
-	// insert a processing request
-	initialExpiry := time.Now().Add(1 * time.Second).UTC()
-	fakeRequest := testutil.GetIdempotentRequest()
-	fakeRequest.ExpiresAt = initialExpiry
-	fakeRequest.RequestStatusID = types.StatusProcessing
-	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
-
-	err := service.UpdateRequestFailed(ctx, requestId)
-	assert.NoError(t, err)
-
-	request, ok := repo.mockDatabase[requestId]
-	assert.True(t, ok, "expected request to remain in the database")
-	assert.Equal(t, types.StatusFailed, request.RequestStatusID)
-}
-
-func TestUpdateRequestFailed_NonExistent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := NewIdempotencyService(&repo)
-	ctx := context.Background()
-	requestId := testutil.RequestId
-
-	err := service.UpdateRequestFailed(ctx, requestId)
-	assert.ErrorIs(t, err, ErrNotFound)
 }

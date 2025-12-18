@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -41,14 +40,6 @@ func TestIdempotencyRepository(t *testing.T) {
 		ExpiresAt:       time.Now().Add(120 * time.Second).Truncate(time.Microsecond).UTC(),
 	}
 
-	payload := map[string]any{
-		"key": 1234,
-	}
-
-	b, err := json.Marshal(payload)
-	require.NoError(t, err)
-	cachedResponseCode := int32(200)
-
 	t.Run("Create and Get Success", func(t *testing.T) {
 		err := repo.CreateStoredRequest(ctx, newRequest)
 		assert.NoError(t, err)
@@ -74,120 +65,6 @@ func TestIdempotencyRepository(t *testing.T) {
 		_, err := repo.GetStoredRequest(ctx, randomID)
 
 		assert.ErrorIs(t, err, ErrNoRows)
-	})
-
-	t.Run("Mark Non-Existent Request as Failed", func(t *testing.T) {
-		randomID := uuid.New()
-		err := repo.UpdateRequestFailed(ctx, randomID)
-
-		assert.ErrorIs(t, err, ErrNoRows)
-	})
-
-	t.Run("Mark Non-Expired Request as Failed", func(t *testing.T) {
-		reqID := uuid.New()
-		newRequest := CreateRequestParams{
-			RequestID:       reqID,
-			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
-			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
-		}
-		err := repo.CreateStoredRequest(ctx, newRequest)
-		require.NoError(t, err)
-
-		err = repo.UpdateRequestFailed(ctx, reqID)
-		assert.ErrorIs(t, err, ErrNoRows)
-	})
-
-	t.Run("Mark Expired Request as Failed", func(t *testing.T) {
-		reqID := uuid.New()
-		newRequest := CreateRequestParams{
-			RequestID:       reqID,
-			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
-			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
-		}
-		err := repo.CreateStoredRequest(ctx, newRequest)
-		require.NoError(t, err)
-
-		err = repo.UpdateRequestFailed(ctx, reqID)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Mark Non-Existent Request as Success", func(t *testing.T) {
-
-		randomID := uuid.New()
-		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
-			RequestID:          randomID,
-			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: cachedResponseCode,
-			CachedResponse:     b,
-		})
-
-		assert.ErrorIs(t, err, ErrNoRows)
-	})
-
-	t.Run("Mark Expired Request as Success", func(t *testing.T) {
-		reqID := uuid.New()
-		newRequest := CreateRequestParams{
-			RequestID:       reqID,
-			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
-			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
-		}
-		err := repo.CreateStoredRequest(ctx, newRequest)
-		require.NoError(t, err)
-
-		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
-			RequestID:          reqID,
-			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: cachedResponseCode,
-			CachedResponse:     b,
-		})
-
-		assert.ErrorIs(t, err, ErrNoRows)
-	})
-
-	t.Run("Mark Non-Processing Request as Success", func(t *testing.T) {
-		reqID := uuid.New()
-		newRequest := CreateRequestParams{
-			RequestID:       reqID,
-			UserID:          uuid.New(),
-			RequestStatusID: types.StatusFailed, // already terminal
-			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
-		}
-		err := repo.CreateStoredRequest(ctx, newRequest)
-		require.NoError(t, err)
-
-		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
-			RequestID:          reqID,
-			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: cachedResponseCode,
-			CachedResponse:     b,
-		})
-
-		assert.ErrorIs(t, err, ErrNoRows)
-	})
-
-	t.Run("Mark Processing Request as Success", func(t *testing.T) {
-		reqID := uuid.New()
-		newRequest := CreateRequestParams{
-			RequestID:       reqID,
-			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
-			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
-		}
-
-		err := repo.CreateStoredRequest(ctx, newRequest)
-		require.NoError(t, err)
-
-		err = repo.UpdateRequestSuccess(ctx, UpdateRequestSuccessParams{
-			RequestID:          reqID,
-			ExpiresAt:          time.Now().Add(24 * time.Hour).UTC(),
-			CachedResponseCode: cachedResponseCode,
-			CachedResponse:     b,
-		})
-
-		assert.NoError(t, err)
 	})
 
 	t.Run("Reprocess Non-Existent Request", func(t *testing.T) {
