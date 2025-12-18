@@ -5,6 +5,7 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -29,15 +30,17 @@ func ping(idempotencyLayer internal.IdempotencyLayer) http.HandlerFunc {
 		logger, ok := ctx.Value(utils.Logger).(*slog.Logger)
 		if !ok {
 			slog.Error("logger from context is the incorrect type")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		requestId, ok := ctx.Value(utils.RequestIdKey).(uuid.UUID)
 		if !ok {
 			logger.Error("requestId from context is the incorrect type")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		status, resp, _ := idempotencyLayer.Handle(ctx, requestId, func(_ context.Context, _ db.Querier) (int, []byte, error) {
+		status, resp, err := idempotencyLayer.Handle(ctx, requestId, func(_ context.Context, _ db.Querier) (int, []byte, error) {
 			time.Sleep(2 * time.Second)
 			response := map[string]string{"message": "pong!"}
 			b, _ := json.Marshal(response)
@@ -45,6 +48,13 @@ func ping(idempotencyLayer internal.IdempotencyLayer) http.HandlerFunc {
 
 			return status, b, nil
 		})
+		if err != nil {
+			if !errors.Is(err, internal.ErrUser) {
+				logger.Error("handler: error caused by user", "error", err)
+				idempotencyLayer.HandleFailure(requestId)
+				return
+			}
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)

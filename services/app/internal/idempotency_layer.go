@@ -40,6 +40,7 @@ func isValidHTTPStatus(code int) bool {
 var ErrNotJson = errors.New("idempotency: non-JSON response returned from callback")
 var ErrInvalidStatus = errors.New("idempotency: invalid repsonse status returned from callback")
 var ErrTransaction = errors.New("idempotency: could not interact with database transaction")
+var ErrUser = errors.New("idempotency: error caused by the user")
 
 const internalFailureStatus = http.StatusInternalServerError
 
@@ -85,6 +86,9 @@ func (c *ConcreteIdempotencyLayer) Handle(ctx context.Context, requestId uuid.UU
 	if !isValidHTTPStatus(status) {
 		return 500, nil, ErrInvalidStatus
 	}
+	if status <= 400 && status < 500 {
+		return status, response, ErrUser
+	}
 
 	successParams := repository.UpdateRequestSuccessParams{
 		RequestID:          requestId,
@@ -97,7 +101,7 @@ func (c *ConcreteIdempotencyLayer) Handle(ctx context.Context, requestId uuid.UU
 		logger.Error("idempotency: updating success", "error", err)
 		rollbackErr := trx.Rollback(ctx)
 		if rollbackErr != nil {
-			logger.Error("idempotency: error rolling back the transaction", "error", err)
+			logger.Error("idempotency: error rolling back the transaction", "error", rollbackErr)
 		}
 		return internalFailureStatus, nil, err
 	}

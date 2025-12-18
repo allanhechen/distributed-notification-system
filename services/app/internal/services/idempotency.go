@@ -22,8 +22,6 @@ const (
 // IdempotencyService is the service that handles request idempotency.
 type IdempotencyService interface {
 	GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error)
-	getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
-	beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
 }
 
 // IdempotencyServiceImplementation is the concrete implementation of
@@ -97,6 +95,7 @@ func (i *IdempotencyServiceImplementation) GetOrBeginRequest(ctx context.Context
 // Returns ErrFailed if the found row was marked failed.
 func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
 	request, err := i.repo.GetStoredRequest(ctx, requestId)
+	now := time.Now()
 	if err != nil {
 		if errors.Is(err, repository.ErrNoRows) {
 			return nil, ErrNotFound
@@ -109,11 +108,11 @@ func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Contex
 		return nil, ErrFailed
 	}
 
-	if request.ExpiresAt.After(time.Now().UTC()) && request.RequestStatusID == types.StatusProcessing {
+	if request.ExpiresAt.After(now.UTC()) && request.RequestStatusID == types.StatusProcessing {
 		return nil, ErrConflict
 	}
 
-	if time.Now().UTC().After(request.ExpiresAt) {
+	if now.UTC().After(request.ExpiresAt) {
 		return nil, ErrExpired
 	}
 

@@ -12,7 +12,7 @@ import (
 
 // IdempotencyLayerRepo handles ending requests.
 type IdempotencyLayerRepo interface {
-	UpdateRequestFailed(ctx context.Context, requestid uuid.UUID) error
+	UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error
 	UpdateRequestSuccess(context.Context, UpdateRequestSuccessParams) error
 }
 
@@ -21,7 +21,7 @@ type QuerierIdempotency struct {
 	querier db.Querier
 }
 
-// NewIdempotencyRepo creates a new IdempotencyLayerRepo.
+// NewIdempotencyLayerRepo creates a new IdempotencyLayerRepo.
 func NewIdempotencyLayerRepo(q db.Querier) IdempotencyLayerRepo {
 	return &QuerierIdempotency{
 		querier: q,
@@ -29,10 +29,9 @@ func NewIdempotencyLayerRepo(q db.Querier) IdempotencyLayerRepo {
 }
 
 // UpdateRequestFailed marks the selected record as failed. This record
-// must already be expired (current time > record expiry time), and also
-// exist in the database.
+// might not yet be expired, but simply exist in the database.
 //
-// If either condition is not met, ErrNoRows is returned.
+// If this condition is not met, ErrNoRows is returned.
 func (q *QuerierIdempotency) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
 	count, err := q.querier.UpdateRequestFailed(ctx, requestId)
 	if err != nil {
@@ -70,7 +69,7 @@ func (q *QuerierIdempotency) UpdateRequestSuccess(ctx context.Context, params Up
 	}
 	count, err := q.querier.UpdateRequestSuccess(ctx, dbParams)
 	if err != nil {
-		return err
+		return fmt.Errorf("db: failed to mark request with requestId %s as successful: %w", params.RequestID, err)
 	}
 
 	if count == 0 {

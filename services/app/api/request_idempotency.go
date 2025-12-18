@@ -28,6 +28,7 @@ func (i *IdempotentRequestHandler) HandleRequest(next http.Handler) http.Handler
 		fromCtx, err := utils.GetValuesFromContext(ctx)
 		if err != nil {
 			slog.Error("idempotency: failed to get values from request context")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		logger := fromCtx.Logger
@@ -42,6 +43,7 @@ func (i *IdempotentRequestHandler) HandleRequest(next http.Handler) http.Handler
 				return
 			}
 
+			w.WriteHeader(http.StatusInternalServerError)
 			logger.Error("handler: inserting request failed due to other error", "error", err)
 			return
 		}
@@ -50,6 +52,7 @@ func (i *IdempotentRequestHandler) HandleRequest(next http.Handler) http.Handler
 		case services.Replay:
 			logger.Info("previous successful request hit idempotency cache")
 			w.Header().Add("X-Cache-Status", "Idempotency-Hit")
+			w.Header().Set("Content-Type", "application/json")
 			if request.CachedResponseCode != nil {
 				w.WriteHeader(int(*request.CachedResponseCode))
 			}
