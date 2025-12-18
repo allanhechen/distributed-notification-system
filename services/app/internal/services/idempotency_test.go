@@ -1,4 +1,4 @@
-package services_test
+package services
 
 import (
 	"context"
@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
-	domainTestutil "github.com/allanhechen/distributed-notification-system/services/app/internal/domain/testutil"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain/testutil"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/repository"
-	"github.com/allanhechen/distributed-notification-system/services/app/internal/services"
-	serviceTestutil "github.com/allanhechen/distributed-notification-system/services/app/internal/services/testutil"
 	"github.com/allanhechen/distributed-notification-system/utils/types"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -127,45 +125,153 @@ func (f *fakeRepository) UpdateRequestReprocess(_ context.Context, params reposi
 	return nil
 }
 
+func TestGetOrBeginRequest_NonExistent(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	nonExistentRequest := uuid.New()
+	userId := testutil.UserId
+	_, at, err := service.GetOrBeginRequest(ctx, nonExistentRequest, userId)
+	assert.NoError(t, err)
+	assert.Equal(t, Proceed, at)
+}
+
+func TestGetOrBeginRequest_AlreadyProcessing(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+	userId := testutil.UserId
+
+	_, _, err := service.GetOrBeginRequest(ctx, fakeRequest.RequestID, userId)
+	assert.ErrorIs(t, err, ErrConflict)
+}
+
+func TestGetOrBeginRequest_CachedInvalid(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+	userId := testutil.UserId
+
+	_, at, err := service.GetOrBeginRequest(ctx, fakeRequest.RequestID, userId)
+	assert.NoError(t, err)
+	assert.Equal(t, Reprocess, at)
+}
+
+func TestGetOrBeginRequest_UpdateConflict(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
+		updateProcessingErr: repository.ErrNoRows, // leads to ErrConflict from beginProcessingRequest
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+	userId := testutil.UserId
+
+	_, _, err := service.GetOrBeginRequest(ctx, fakeRequest.RequestID, userId)
+	assert.ErrorIs(t, err, ErrConflict)
+}
+
 func TestGetExistingRequest_NonExistent(t *testing.T) {
 	repo := fakeRepository{
 		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
 
 	nonExistentRequest := uuid.New()
-	_, err := service.GetExistingRequest(ctx, nonExistentRequest)
-	assert.ErrorIs(t, err, services.ErrNotFound)
+	_, err := service.getExistingRequest(ctx, nonExistentRequest)
+	assert.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestGetExistingRequest_Existent(t *testing.T) {
 	repo := fakeRepository{
 		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
 
 	// insert a new request
-	fakeRequest := domainTestutil.GetIdempotentRequest()
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusComplete
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
-	request, err := service.GetExistingRequest(ctx, fakeRequest.RequestID)
+	request, err := service.getExistingRequest(ctx, fakeRequest.RequestID)
 	assert.NoError(t, err)
-	assert.Equal(t, domainTestutil.GetIdempotentRequest(), request)
+	assert.Equal(t, fakeRequest, request)
+}
+
+func TestGetExistingRequest_Failed(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a failed request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusFailed
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+
+	// retrieve request with service
+	_, err := service.getExistingRequest(ctx, fakeRequest.RequestID)
+	assert.ErrorIs(t, err, ErrFailed)
+}
+
+func TestGetExistingRequest_Expired(t *testing.T) {
+	repo := fakeRepository{
+		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
+	}
+	service := NewIdempotencyService(&repo)
+	ctx := context.Background()
+
+	// insert a new request
+	fakeRequest := testutil.GetIdempotentRequest()
+	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
+	fakeRequest.RequestStatusID = types.StatusProcessing
+	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
+
+	// retrieve request with service
+	_, err := service.getExistingRequest(ctx, fakeRequest.RequestID)
+	assert.ErrorIs(t, err, ErrExpired)
 }
 
 func TestBeginProcessingRequest_NewRequest(t *testing.T) {
 	repo := fakeRepository{
 		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-	userId := domainTestutil.UserId
+	requestId := testutil.RequestId
+	userId := testutil.UserId
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.NoError(t, err)
 
 	request, ok := repo.mockDatabase[requestId]
@@ -177,19 +283,19 @@ func TestBeginProcessingRequest_ExpiredRequest(t *testing.T) {
 	repo := fakeRepository{
 		mockDatabase: make(map[uuid.UUID]domain.IdempotentRequest),
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-	userId := domainTestutil.UserId
+	requestId := testutil.RequestId
+	userId := testutil.UserId
 
 	// insert an expired request
 	initialExpiry := time.Now().Add(-1 * time.Second).UTC()
-	fakeRequest := domainTestutil.GetIdempotentRequest()
+	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = initialExpiry
 	fakeRequest.RequestStatusID = types.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
 	assert.NoError(t, err)
 
 	request, ok := repo.mockDatabase[requestId]
@@ -205,20 +311,20 @@ func TestBeginProcessingRequest_AlreadyComplete(t *testing.T) {
 		createErr:           repository.ErrAlreadyExists,
 		updateProcessingErr: repository.ErrNoRows,
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-	userId := domainTestutil.UserId
+	requestId := testutil.RequestId
+	userId := testutil.UserId
 
 	// insert a complete request
 	expiry := time.Now().Add(24 * time.Hour).UTC()
-	fakeRequest := domainTestutil.GetIdempotentRequest()
+	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = expiry
 	fakeRequest.RequestStatusID = types.StatusComplete
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
-	assert.ErrorIs(t, err, services.ErrConflict)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
+	assert.ErrorIs(t, err, ErrConflict)
 }
 
 func TestBeginProcessingRequest_NotExpired(t *testing.T) {
@@ -227,20 +333,20 @@ func TestBeginProcessingRequest_NotExpired(t *testing.T) {
 		createErr:           repository.ErrAlreadyExists,
 		updateProcessingErr: repository.ErrNoRows,
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-	userId := domainTestutil.UserId
+	requestId := testutil.RequestId
+	userId := testutil.UserId
 
 	// insert a not-expired request
 	expiry := time.Now().Add(24 * time.Hour).UTC()
-	fakeRequest := domainTestutil.GetIdempotentRequest()
+	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = expiry
 	fakeRequest.RequestStatusID = types.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
-	assert.ErrorIs(t, err, services.ErrConflict)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
+	assert.ErrorIs(t, err, ErrConflict)
 }
 
 func TestBeginProcessingRequest_OtherConflict(t *testing.T) {
@@ -249,92 +355,11 @@ func TestBeginProcessingRequest_OtherConflict(t *testing.T) {
 		createErr:           repository.ErrAlreadyExists,
 		updateProcessingErr: repository.ErrNoRows,
 	}
-	service := services.NewIdempotencyService(&repo)
+	service := NewIdempotencyService(&repo)
 	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-	userId := domainTestutil.UserId
+	requestId := testutil.RequestId
+	userId := testutil.UserId
 
-	err := service.BeginProcessingRequest(ctx, requestId, userId)
-	assert.ErrorIs(t, err, services.ErrConflict)
-}
-
-func TestUpdateRequestSuccess_Existent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := services.NewIdempotencyService(&repo)
-	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-
-	// insert a processing request
-	initialExpiry := time.Now().Add(1 * time.Second).UTC()
-	fakeRequest := domainTestutil.GetIdempotentRequest()
-	fakeRequest.ExpiresAt = initialExpiry
-	fakeRequest.RequestStatusID = types.StatusProcessing
-	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
-
-	fakeRequestUpdate := serviceTestutil.GetUpdateRequestSuccessParams()
-
-	err := service.UpdateRequestSuccess(ctx, *fakeRequestUpdate)
-	assert.NoError(t, err)
-
-	request, ok := repo.mockDatabase[requestId]
-	assert.True(t, ok, "expected request to remain in the database")
-	assert.Equal(t, types.StatusComplete, request.RequestStatusID)
-	assert.True(t, request.ExpiresAt.After(initialExpiry), "ExpiresAt should be updated to a later time")
-}
-
-func TestUpdateRequestSuccess_NonExistent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := services.NewIdempotencyService(&repo)
-	ctx := context.Background()
-	fakeRequestUpdate := serviceTestutil.GetUpdateRequestSuccessParams()
-
-	err := service.UpdateRequestSuccess(ctx, *fakeRequestUpdate)
-	assert.ErrorIs(t, err, services.ErrNotFound)
-}
-
-func TestUpdateRequestFailed_Existent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := services.NewIdempotencyService(&repo)
-	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-
-	// insert a processing request
-	initialExpiry := time.Now().Add(1 * time.Second).UTC()
-	fakeRequest := domainTestutil.GetIdempotentRequest()
-	fakeRequest.ExpiresAt = initialExpiry
-	fakeRequest.RequestStatusID = types.StatusProcessing
-	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
-
-	err := service.UpdateRequestFailed(ctx, requestId)
-	assert.NoError(t, err)
-
-	request, ok := repo.mockDatabase[requestId]
-	assert.True(t, ok, "expected request to remain in the database")
-	assert.Equal(t, types.StatusFailed, request.RequestStatusID)
-}
-
-func TestUpdateRequestFailed_NonExistent(t *testing.T) {
-	repo := fakeRepository{
-		mockDatabase:        make(map[uuid.UUID]domain.IdempotentRequest),
-		createErr:           repository.ErrAlreadyExists,
-		updateProcessingErr: repository.ErrNoRows,
-	}
-	service := services.NewIdempotencyService(&repo)
-	ctx := context.Background()
-	requestId := domainTestutil.RequestId
-
-	err := service.UpdateRequestFailed(ctx, requestId)
-	assert.ErrorIs(t, err, services.ErrNotFound)
+	err := service.beginProcessingRequest(ctx, requestId, userId)
+	assert.ErrorIs(t, err, ErrConflict)
 }

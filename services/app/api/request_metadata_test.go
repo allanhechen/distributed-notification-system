@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/allanhechen/distributed-notification-system/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -19,11 +20,11 @@ func TestRequestMetadataMiddleware(t *testing.T) {
 
 	mockHandler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if receivedRequestId, ok := ctx.Value(requestIdKey).(uuid.UUID); !ok || receivedRequestId != fakeRequestId {
+		if receivedRequestId, ok := ctx.Value(utils.RequestIdKey).(uuid.UUID); !ok || receivedRequestId != fakeRequestId {
 			t.Errorf("expected requestId to be %v, got %v", fakeRequestId, receivedRequestId)
 		}
 
-		if receivedUserId, ok := ctx.Value(userIdKey).(uuid.UUID); !ok || receivedUserId != fakeUserId {
+		if receivedUserId, ok := ctx.Value(utils.UserIdKey).(uuid.UUID); !ok || receivedUserId != fakeUserId {
 			t.Errorf("expected userId to be %v, got %v", fakeUserId, receivedUserId)
 		}
 		handlerCalled = true

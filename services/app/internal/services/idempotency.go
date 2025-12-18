@@ -11,12 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
+type IdempotencyActionType int
+
+const (
+	Proceed IdempotencyActionType = iota
+	Reprocess
+	Replay
+)
+
 // IdempotencyService is the service that handles request idempotency.
 type IdempotencyService interface {
-	GetExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
-	BeginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
-	UpdateRequestSuccess(context.Context, UpdateRequestSuccessParams) error
-	UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error
+	GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error)
+	getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
+	beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
 }
 
 // IdempotencyServiceImplementation is the concrete implementation of
@@ -32,12 +39,65 @@ func NewIdempotencyService(repo repository.IdempotencyRepo) IdempotencyService {
 	}
 }
 
-// GetExistingRequest finds the request with the given requestId. Simple
+// GetOrBeginRequest either retrieves or begins the request with the
+// given information.
+//
+// 1. If the request already exists, the request is returned with a Replay
+// command and a nil error.
+//
+// 2. If the request is expired or failed, the request is marked as
+// processing, a Reprocess command with a nil error is returned.
+//
+// 3.If the request is not found, the request is marked as processing, a
+// Proceed command with a nil error is returned.
+//
+// 4. If the request is found but still processing and not expired, an
+// ErrConflict is returned.
+//
+// If ErrConflict is returned while marking the request as processing, it
+// is returned with no other values.
+func (i *IdempotencyServiceImplementation) GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error) {
+	request, err := i.getExistingRequest(ctx, requestId)
+	if err == nil {
+		return request, Replay, nil
+	}
+
+	var at IdempotencyActionType
+
+	switch {
+	case errors.Is(err, ErrExpired), errors.Is(err, ErrFailed):
+		at = Reprocess
+	case errors.Is(err, ErrNotFound):
+		at = Proceed
+	case errors.Is(err, ErrConflict):
+		return nil, at, err
+	default:
+		return nil, at, err
+	}
+
+	err = i.beginProcessingRequest(ctx, requestId, userId)
+
+	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			return nil, at, ErrConflict
+		}
+
+		return nil, at, err
+	}
+
+	return nil, at, nil
+}
+
+// getExistingRequest finds the request with the given requestId. Simple
 // wrapper around the repository method.
 //
 // Returns ErrNotFound if no rows were reported by the repository.
-func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
+// Returns ErrConflict if the retrieved request is still being processed.
+// Returns ErrExpired if the found row was marked expired.
+// Returns ErrFailed if the found row was marked failed.
+func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error) {
 	request, err := i.repo.GetStoredRequest(ctx, requestId)
+	now := time.Now()
 	if err != nil {
 		if errors.Is(err, repository.ErrNoRows) {
 			return nil, ErrNotFound
@@ -46,10 +106,22 @@ func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Contex
 		return nil, err
 	}
 
+	if request.RequestStatusID == types.StatusFailed {
+		return nil, ErrFailed
+	}
+
+	if request.ExpiresAt.After(now.UTC()) && request.RequestStatusID == types.StatusProcessing {
+		return nil, ErrConflict
+	}
+
+	if now.UTC().After(request.ExpiresAt) {
+		return nil, ErrExpired
+	}
+
 	return request, nil
 }
 
-// BeginProcessingRequest begins processing of the given requestId. If
+// beginProcessingRequest begins processing of the given requestId. If
 // inserting a stored request returns repository.ErrAlreadyExists, it
 // tries to update the same row. If this this fails, one of the following
 // has occurred:
@@ -58,7 +130,7 @@ func (i *IdempotencyServiceImplementation) GetExistingRequest(ctx context.Contex
 // 3. Previous request is already marked complete
 //
 // In all situations, ErrConflict is returned.
-func (i *IdempotencyServiceImplementation) BeginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error {
+func (i *IdempotencyServiceImplementation) beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error {
 	newExpiryTime := time.Now().Add(domain.ShortRequestTtl).UTC()
 	newRequest := repository.CreateRequestParams{
 		RequestID:       requestId,
@@ -89,51 +161,5 @@ func (i *IdempotencyServiceImplementation) BeginProcessingRequest(ctx context.Co
 		return err
 	}
 
-	return nil
-}
-
-type UpdateRequestSuccessParams struct {
-	RequestID          uuid.UUID
-	CachedResponseCode int32
-	CachedResponse     []byte
-}
-
-// UpdateRequestSuccess marks the status of the given requestId to
-// success.
-//
-// Returns ErrNotFound no rows were updated.
-func (i *IdempotencyServiceImplementation) UpdateRequestSuccess(ctx context.Context, params UpdateRequestSuccessParams) error {
-	newExpiryTime := time.Now().Add(domain.LongRequestTtl).UTC()
-	updateRequestSuccess := repository.UpdateRequestSuccessParams{
-		RequestID:          params.RequestID,
-		CachedResponseCode: params.CachedResponseCode,
-		CachedResponse:     params.CachedResponse,
-		ExpiresAt:          newExpiryTime,
-	}
-	err := i.repo.UpdateRequestSuccess(ctx, updateRequestSuccess)
-
-	if err != nil {
-		if errors.Is(err, repository.ErrNoRows) {
-			return ErrNotFound
-		}
-		return err
-	}
-
-	return nil
-}
-
-// UpdateRequestFailed marks the status of the given requestId to
-// failed.
-//
-// Returns ErrNotFound no rows were updated.
-func (i *IdempotencyServiceImplementation) UpdateRequestFailed(ctx context.Context, requestId uuid.UUID) error {
-	err := i.repo.UpdateRequestFailed(ctx, requestId)
-
-	if err != nil {
-		if errors.Is(err, repository.ErrNoRows) {
-			return ErrNotFound
-		}
-		return err
-	}
 	return nil
 }

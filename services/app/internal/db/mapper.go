@@ -25,11 +25,10 @@ func IdempotentRequestFromDomain(domainRequest *domain.IdempotentRequest) *Idemp
 		}
 	}
 
+	// TODO: test that this is valid JSON
 	var cachedResponse []byte
 	if domainRequest.CachedResponse != nil {
 		cachedResponse = *domainRequest.CachedResponse
-	} else {
-		cachedResponse = make([]byte, 0)
 	}
 
 	return &IdempotentRequest{

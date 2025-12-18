@@ -42,8 +42,8 @@ func CanonicalLogger(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		start := time.Now()
-		requestId := ctx.Value(requestIdKey)
-		userId := ctx.Value(userIdKey)
+		requestId := ctx.Value(utils.RequestIdKey)
+		userId := ctx.Value(utils.UserIdKey)
 
 		customWriter := &wrappedWriter{w, 0}
 		requestLogger := slog.Default().With("request_id", requestId, "user_id", userId)

@@ -8,6 +8,7 @@ import (
 
 	v1 "github.com/allanhechen/distributed-notification-system/services/app/api/v1"
 	_ "github.com/allanhechen/distributed-notification-system/services/app/docs"
+	"github.com/allanhechen/distributed-notification-system/services/app/internal"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -41,13 +42,18 @@ func healthcheck(w http.ResponseWriter, req *http.Request) {
 }
 
 // Creates an API handler, expected to be used once during the initialization of the application
-func Api() *http.ServeMux {
-	v1Mux := v1.Routes()
+func Api(idempotentRequestHandler *IdempotentRequestHandler, idempotencyLayer internal.IdempotencyLayer) *http.ServeMux {
+	v1Mux := v1.Routes(idempotencyLayer)
 
 	api := http.NewServeMux()
 	api.Handle("/docs/", httpSwagger.WrapHandler)
 
-	api.HandleFunc("/v1/", RequestMetadataMiddleware(CanonicalLogger(http.StripPrefix("/v1", v1Mux))))
+	baseHandler := http.StripPrefix("/v1", v1Mux)
+	idempotentHandler := idempotentRequestHandler.HandleRequest(baseHandler)
+	loggedHandler := CanonicalLogger(idempotentHandler)
+	finalHandler := RequestMetadataMiddleware(loggedHandler)
+
+	api.HandleFunc("/v1/", finalHandler)
 	api.HandleFunc("/", healthcheck)
 
 	return api

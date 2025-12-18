@@ -21,5 +21,12 @@ type IdempotentRequest struct {
 // ShortRequestTtl is the TTL associated with processing requests
 var ShortRequestTtl = 120 * time.Second
 
+// ProcessingTtl is the TTL allocated to process requests. Gives some
+// freedom for slower requests compared to ShortRequestTtl
+var ProcessingTtl = 100 * time.Second
+
 // LongRequestTtl is the TTL associated with storing processed requests
 var LongRequestTtl = 24 * time.Hour
+
+// Default timeout for database operations
+var DatabaseTimeout = 24 * time.Second

@@ -23,12 +23,14 @@ paths:
     get:
       description: Endpoint to quickly verify that the server is reachable
       produces:
-      - text/plain
+      - application/json
       responses:
         "200":
-          description: pong!
+          description: pong response
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
       summary: Test server connectivity
       tags:
       - health
