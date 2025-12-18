@@ -6,12 +6,6 @@ import (
 	"sync"
 )
 
-// Unique keys for the LogState context
-type contextKey string
-
-const Logger contextKey = "logger"
-const LoggedState contextKey = "loggedState"
-
 type LogState struct {
 	mu     sync.Mutex
 	fields map[string]any

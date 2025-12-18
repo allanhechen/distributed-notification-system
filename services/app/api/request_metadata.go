@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/allanhechen/distributed-notification-system/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -15,12 +16,6 @@ type requestIdentifiers struct {
 	jwt.RegisteredClaims
 	UserId uuid.UUID `json:"user_id"`
 }
-
-// Unique keys for the metadata context
-type metadataContextKey string
-
-const requestIdKey metadataContextKey = "requestId"
-const userIdKey metadataContextKey = "userId"
 
 // RequestMetadataMiddleware retrieves the identifying information for the
 // current request from its associated JWT, and immediately rejects any
@@ -73,8 +68,8 @@ func RequestMetadataMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		ctx := req.Context()
-		ctx = context.WithValue(ctx, requestIdKey, requestId)
-		ctx = context.WithValue(ctx, userIdKey, claims.UserId)
+		ctx = context.WithValue(ctx, utils.RequestIdKey, requestId)
+		ctx = context.WithValue(ctx, utils.UserIdKey, claims.UserId)
 		req = req.WithContext(ctx)
 
 		next.ServeHTTP(w, req)
