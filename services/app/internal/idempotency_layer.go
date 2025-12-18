@@ -86,7 +86,7 @@ func (c *ConcreteIdempotencyLayer) Handle(ctx context.Context, requestId uuid.UU
 	if !isValidHTTPStatus(status) {
 		return 500, nil, ErrInvalidStatus
 	}
-	if status <= 400 && status < 500 {
+	if status >= 400 && status < 500 {
 		return status, response, ErrUser
 	}
 

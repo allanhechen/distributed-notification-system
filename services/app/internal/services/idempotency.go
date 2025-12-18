@@ -22,6 +22,8 @@ const (
 // IdempotencyService is the service that handles request idempotency.
 type IdempotencyService interface {
 	GetOrBeginRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) (*domain.IdempotentRequest, IdempotencyActionType, error)
+	getExistingRequest(ctx context.Context, requestId uuid.UUID) (*domain.IdempotentRequest, error)
+	beginProcessingRequest(ctx context.Context, requestId uuid.UUID, userId uuid.UUID) error
 }
 
 // IdempotencyServiceImplementation is the concrete implementation of
