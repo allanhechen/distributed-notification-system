@@ -38,7 +38,7 @@ func isValidHTTPStatus(code int) bool {
 }
 
 var ErrNotJson = errors.New("idempotency: non-JSON response returned from callback")
-var ErrInvalidStatus = errors.New("idempotency: invalid repsonse status returned from callback")
+var ErrInvalidStatus = errors.New("idempotency: invalid response status returned from callback")
 var ErrTransaction = errors.New("idempotency: could not interact with database transaction")
 var ErrUser = errors.New("idempotency: error caused by the user")
 
