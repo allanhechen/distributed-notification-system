@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
+	"github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -24,10 +24,10 @@ INSERT INTO idempotent_requests(
 `
 
 type CreateRequestParams struct {
-	RequestID       uuid.UUID                      `json:"request_id"`
-	UserID          uuid.UUID                      `json:"user_id"`
-	RequestStatusID idempotencyTypes.RequestStatus `json:"request_status_id"`
-	ExpiresAt       time.Time                      `json:"expires_at"`
+	RequestID       uuid.UUID                 `json:"request_id"`
+	UserID          uuid.UUID                 `json:"user_id"`
+	RequestStatusID idempotency.RequestStatus `json:"request_status_id"`
+	ExpiresAt       time.Time                 `json:"expires_at"`
 }
 
 func (q *Queries) CreateRequest(ctx context.Context, arg CreateRequestParams) error {

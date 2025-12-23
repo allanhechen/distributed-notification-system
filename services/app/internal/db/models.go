@@ -7,18 +7,18 @@ package db
 import (
 	"time"
 
-	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
+	"github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type IdempotentRequest struct {
-	RequestID          uuid.UUID                      `json:"request_id"`
-	UserID             uuid.UUID                      `json:"user_id"`
-	RequestStatusID    idempotencyTypes.RequestStatus `json:"request_status_id"`
-	CachedResponseCode pgtype.Int4                    `json:"cached_response_code"`
-	CachedResponse     []byte                         `json:"cached_response"`
-	ExpiresAt          time.Time                      `json:"expires_at"`
+	RequestID          uuid.UUID                 `json:"request_id"`
+	UserID             uuid.UUID                 `json:"user_id"`
+	RequestStatusID    idempotency.RequestStatus `json:"request_status_id"`
+	CachedResponseCode pgtype.Int4               `json:"cached_response_code"`
+	CachedResponse     []byte                    `json:"cached_response"`
+	ExpiresAt          time.Time                 `json:"expires_at"`
 }
 
 type IdempotentRequestStatus struct {
