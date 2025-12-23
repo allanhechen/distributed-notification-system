@@ -1,4 +1,4 @@
-package types
+package idempotency
 
 // Request status type for the idempotent_request_statuses table in the
 // application server.

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 )
 
@@ -19,7 +19,7 @@ func GetIdempotentRequest() *domain.IdempotentRequest {
 	return &domain.IdempotentRequest{
 		RequestID:          RequestId,
 		UserID:             UserId,
-		RequestStatusID:    types.StatusProcessing,
+		RequestStatusID:    idempotencyTypes.StatusProcessing,
 		CachedResponseCode: nil,
 		CachedResponse:     nil,
 		ExpiresAt: time.Date(

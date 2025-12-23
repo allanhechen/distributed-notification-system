@@ -8,7 +8,7 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/testutils"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -58,7 +58,7 @@ func TestIdempotencyLayerRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
+			RequestStatusID: idempotencyTypes.StatusProcessing,
 			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
 		}
 		err := repo.CreateStoredRequest(ctx, newRequest)
@@ -76,7 +76,7 @@ func TestIdempotencyLayerRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
+			RequestStatusID: idempotencyTypes.StatusProcessing,
 			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
 		}
 		err := repo.CreateStoredRequest(ctx, newRequest)
@@ -109,7 +109,7 @@ func TestIdempotencyLayerRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
+			RequestStatusID: idempotencyTypes.StatusProcessing,
 			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
 		}
 		err := repo.CreateStoredRequest(ctx, newRequest)
@@ -133,7 +133,7 @@ func TestIdempotencyLayerRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusFailed, // already terminal
+			RequestStatusID: idempotencyTypes.StatusFailed, // already terminal
 			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
 		}
 		err := repo.CreateStoredRequest(ctx, newRequest)
@@ -157,7 +157,7 @@ func TestIdempotencyLayerRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
+			RequestStatusID: idempotencyTypes.StatusProcessing,
 			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
 		}
 

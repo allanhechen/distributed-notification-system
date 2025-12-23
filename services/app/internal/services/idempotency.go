@@ -7,7 +7,7 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/repository"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 )
 
@@ -106,11 +106,11 @@ func (i *IdempotencyServiceImplementation) getExistingRequest(ctx context.Contex
 		return nil, err
 	}
 
-	if request.RequestStatusID == types.StatusFailed {
+	if request.RequestStatusID == idempotencyTypes.StatusFailed {
 		return nil, ErrFailed
 	}
 
-	if request.ExpiresAt.After(now.UTC()) && request.RequestStatusID == types.StatusProcessing {
+	if request.ExpiresAt.After(now.UTC()) && request.RequestStatusID == idempotencyTypes.StatusProcessing {
 		return nil, ErrConflict
 	}
 
@@ -135,7 +135,7 @@ func (i *IdempotencyServiceImplementation) beginProcessingRequest(ctx context.Co
 	newRequest := repository.CreateRequestParams{
 		RequestID:       requestId,
 		UserID:          userId,
-		RequestStatusID: types.StatusProcessing,
+		RequestStatusID: idempotencyTypes.StatusProcessing,
 		ExpiresAt:       newExpiryTime,
 	}
 	err := i.repo.CreateStoredRequest(ctx, newRequest)
