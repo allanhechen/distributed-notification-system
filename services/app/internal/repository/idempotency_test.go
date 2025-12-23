@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/testutils"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +36,7 @@ func TestIdempotencyRepository(t *testing.T) {
 	newRequest := CreateRequestParams{
 		RequestID:       reqID,
 		UserID:          uuid.New(),
-		RequestStatusID: types.StatusProcessing,
+		RequestStatusID: idempotencyTypes.StatusProcessing,
 		ExpiresAt:       time.Now().Add(120 * time.Second).Truncate(time.Microsecond).UTC(),
 	}
 
@@ -82,7 +82,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
+			RequestStatusID: idempotencyTypes.StatusProcessing,
 			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
 		}
 
@@ -101,7 +101,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusComplete,
+			RequestStatusID: idempotencyTypes.StatusComplete,
 			ExpiresAt:       time.Now().Add(-120 * time.Second).UTC(),
 		}
 
@@ -120,7 +120,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusFailed,
+			RequestStatusID: idempotencyTypes.StatusFailed,
 			ExpiresAt:       time.Now().Add(120 * time.Second).UTC(),
 		}
 
@@ -139,7 +139,7 @@ func TestIdempotencyRepository(t *testing.T) {
 		newRequest := CreateRequestParams{
 			RequestID:       reqID,
 			UserID:          uuid.New(),
-			RequestStatusID: types.StatusProcessing,
+			RequestStatusID: idempotencyTypes.StatusProcessing,
 			ExpiresAt:       time.Now().Add(-1 * time.Second).UTC(),
 		}
 

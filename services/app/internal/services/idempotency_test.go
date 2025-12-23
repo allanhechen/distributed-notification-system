@@ -8,7 +8,7 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain/testutil"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/repository"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -66,7 +66,7 @@ func (f *fakeRepository) UpdateRequestFailed(_ context.Context, requestId uuid.U
 	f.mockDatabase[requestId] = domain.IdempotentRequest{
 		RequestID:          request.RequestID,
 		UserID:             request.UserID,
-		RequestStatusID:    types.StatusFailed,
+		RequestStatusID:    idempotencyTypes.StatusFailed,
 		CachedResponseCode: request.CachedResponseCode,
 		CachedResponse:     request.CachedResponse,
 		ExpiresAt:          request.ExpiresAt,
@@ -88,7 +88,7 @@ func (f *fakeRepository) UpdateRequestSuccess(_ context.Context, params reposito
 	f.mockDatabase[params.RequestID] = domain.IdempotentRequest{
 		RequestID:          request.RequestID,
 		UserID:             request.UserID,
-		RequestStatusID:    types.StatusComplete,
+		RequestStatusID:    idempotencyTypes.StatusComplete,
 		CachedResponseCode: &params.CachedResponseCode,
 		CachedResponse:     &params.CachedResponse,
 		ExpiresAt:          params.ExpiresAt,
@@ -108,15 +108,15 @@ func (f *fakeRepository) UpdateRequestReprocess(_ context.Context, params reposi
 	}
 
 	now := time.Now().UTC()
-	if (request.RequestStatusID == types.StatusComplete) ||
-		(request.RequestStatusID == types.StatusProcessing && !now.After(request.ExpiresAt)) {
+	if (request.RequestStatusID == idempotencyTypes.StatusComplete) ||
+		(request.RequestStatusID == idempotencyTypes.StatusProcessing && !now.After(request.ExpiresAt)) {
 		return repository.ErrNoRows
 	}
 
 	f.mockDatabase[params.RequestID] = domain.IdempotentRequest{
 		RequestID:          request.RequestID,
 		UserID:             request.UserID,
-		RequestStatusID:    types.StatusProcessing,
+		RequestStatusID:    idempotencyTypes.StatusProcessing,
 		CachedResponseCode: request.CachedResponseCode,
 		CachedResponse:     request.CachedResponse,
 		ExpiresAt:          params.ExpiresAt,
@@ -149,7 +149,7 @@ func TestGetOrBeginRequest_AlreadyProcessing(t *testing.T) {
 	// insert a new request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
-	fakeRequest.RequestStatusID = types.StatusProcessing
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 	userId := testutil.UserId
 
@@ -167,7 +167,7 @@ func TestGetOrBeginRequest_CachedInvalid(t *testing.T) {
 	// insert a new request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
-	fakeRequest.RequestStatusID = types.StatusProcessing
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 	userId := testutil.UserId
 
@@ -187,7 +187,7 @@ func TestGetOrBeginRequest_UpdateConflict(t *testing.T) {
 	// insert a new request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
-	fakeRequest.RequestStatusID = types.StatusProcessing
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 	userId := testutil.UserId
 
@@ -217,7 +217,7 @@ func TestGetExistingRequest_Existent(t *testing.T) {
 	// insert a new request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
-	fakeRequest.RequestStatusID = types.StatusComplete
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusComplete
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
@@ -236,7 +236,7 @@ func TestGetExistingRequest_Failed(t *testing.T) {
 	// insert a failed request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
-	fakeRequest.RequestStatusID = types.StatusFailed
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusFailed
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
@@ -254,7 +254,7 @@ func TestGetExistingRequest_Expired(t *testing.T) {
 	// insert a new request
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = time.Now().Add(-24 * time.Hour).UTC()
-	fakeRequest.RequestStatusID = types.StatusProcessing
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	// retrieve request with service
@@ -292,7 +292,7 @@ func TestBeginProcessingRequest_ExpiredRequest(t *testing.T) {
 	initialExpiry := time.Now().Add(-1 * time.Second).UTC()
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = initialExpiry
-	fakeRequest.RequestStatusID = types.StatusProcessing
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	err := service.beginProcessingRequest(ctx, requestId, userId)
@@ -301,7 +301,7 @@ func TestBeginProcessingRequest_ExpiredRequest(t *testing.T) {
 	request, ok := repo.mockDatabase[requestId]
 	assert.True(t, ok, "expected request to remain in the database")
 	assert.Equal(t, userId, request.UserID, "expected updated userId to match given userId")
-	assert.Equal(t, types.StatusProcessing, request.RequestStatusID)
+	assert.Equal(t, idempotencyTypes.StatusProcessing, request.RequestStatusID)
 	assert.True(t, request.ExpiresAt.After(initialExpiry), "ExpiresAt should be updated to a later time")
 }
 
@@ -320,7 +320,7 @@ func TestBeginProcessingRequest_AlreadyComplete(t *testing.T) {
 	expiry := time.Now().Add(24 * time.Hour).UTC()
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = expiry
-	fakeRequest.RequestStatusID = types.StatusComplete
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusComplete
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	err := service.beginProcessingRequest(ctx, requestId, userId)
@@ -342,7 +342,7 @@ func TestBeginProcessingRequest_NotExpired(t *testing.T) {
 	expiry := time.Now().Add(24 * time.Hour).UTC()
 	fakeRequest := testutil.GetIdempotentRequest()
 	fakeRequest.ExpiresAt = expiry
-	fakeRequest.RequestStatusID = types.StatusProcessing
+	fakeRequest.RequestStatusID = idempotencyTypes.StatusProcessing
 	repo.mockDatabase[fakeRequest.RequestID] = *fakeRequest
 
 	err := service.beginProcessingRequest(ctx, requestId, userId)

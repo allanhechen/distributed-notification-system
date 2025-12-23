@@ -6,7 +6,7 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +30,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 			domainRequest: domain.IdempotentRequest{
 				RequestID:          requestId,
 				UserID:             userId,
-				RequestStatusID:    types.StatusComplete,
+				RequestStatusID:    idempotencyTypes.StatusComplete,
 				CachedResponseCode: nil,
 				CachedResponse:     nil,
 				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -38,7 +38,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
 				UserID:          userId,
-				RequestStatusID: types.StatusComplete,
+				RequestStatusID: idempotencyTypes.StatusComplete,
 				CachedResponseCode: pgtype.Int4{
 					Int32: 0,
 					Valid: false,
@@ -52,7 +52,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 			domainRequest: domain.IdempotentRequest{
 				RequestID:          requestId,
 				UserID:             userId,
-				RequestStatusID:    types.StatusFailed,
+				RequestStatusID:    idempotencyTypes.StatusFailed,
 				CachedResponseCode: &cachedResponseCode,
 				CachedResponse:     &cachedResponse,
 				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -60,7 +60,7 @@ func TestIdempotentRequestFromDomain(t *testing.T) {
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
 				UserID:          userId,
-				RequestStatusID: types.StatusFailed,
+				RequestStatusID: idempotencyTypes.StatusFailed,
 				CachedResponseCode: pgtype.Int4{
 					Int32: 200,
 					Valid: true,
@@ -97,7 +97,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 			domainRequest: domain.IdempotentRequest{
 				RequestID:          requestId,
 				UserID:             userId,
-				RequestStatusID:    types.StatusComplete,
+				RequestStatusID:    idempotencyTypes.StatusComplete,
 				CachedResponseCode: nil,
 				CachedResponse:     nil,
 				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -105,7 +105,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
 				UserID:          userId,
-				RequestStatusID: types.StatusComplete,
+				RequestStatusID: idempotencyTypes.StatusComplete,
 				CachedResponseCode: pgtype.Int4{
 					Int32: 0,
 					Valid: false,
@@ -119,7 +119,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 			domainRequest: domain.IdempotentRequest{
 				RequestID:          requestId,
 				UserID:             userId,
-				RequestStatusID:    types.StatusFailed,
+				RequestStatusID:    idempotencyTypes.StatusFailed,
 				CachedResponseCode: &cachedResponseCode,
 				CachedResponse:     &cachedResponse,
 				ExpiresAt:          time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -127,7 +127,7 @@ func TestIdempotentRequestToDomain(t *testing.T) {
 			dbRequest: db.IdempotentRequest{
 				RequestID:       requestId,
 				UserID:          userId,
-				RequestStatusID: types.StatusFailed,
+				RequestStatusID: idempotencyTypes.StatusFailed,
 				CachedResponseCode: pgtype.Int4{
 					Int32: 200,
 					Valid: true,

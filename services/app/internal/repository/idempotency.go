@@ -8,7 +8,7 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/db"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/domain"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
@@ -60,7 +60,7 @@ func (p *PgxIdempotency) GetStoredRequest(ctx context.Context, requestId uuid.UU
 type CreateRequestParams struct {
 	RequestID       uuid.UUID
 	UserID          uuid.UUID
-	RequestStatusID types.RequestStatus
+	RequestStatusID idempotencyTypes.RequestStatus
 	ExpiresAt       time.Time
 }
 

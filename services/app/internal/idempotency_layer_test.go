@@ -13,7 +13,7 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/repository/testutil"
 	"github.com/allanhechen/distributed-notification-system/services/app/internal/testutils"
 	"github.com/allanhechen/distributed-notification-system/utils"
-	"github.com/allanhechen/distributed-notification-system/utils/types"
+	idempotencyTypes "github.com/allanhechen/distributed-notification-system/utils/idempotency"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -65,7 +65,7 @@ func TestIdempotencyLayer(t *testing.T) {
 
 		req, err := q.GetRequest(ctx, createRequestParams.RequestID)
 		assert.NoError(t, err)
-		assert.Equal(t, types.StatusComplete, req.RequestStatusID)
+		assert.Equal(t, idempotencyTypes.StatusComplete, req.RequestStatusID)
 		assert.Equal(t, pgtype.Int4(pgtype.Int4{Int32: 200, Valid: true}), req.CachedResponseCode)
 	})
 
@@ -88,7 +88,7 @@ func TestIdempotencyLayer(t *testing.T) {
 
 		req, err := q.GetRequest(ctx, createRequestParams.RequestID)
 		assert.NoError(t, err)
-		assert.Equal(t, types.StatusProcessing, req.RequestStatusID)
+		assert.Equal(t, idempotencyTypes.StatusProcessing, req.RequestStatusID)
 		assert.Equal(t, pgtype.Int4(pgtype.Int4{Int32: 0, Valid: false}), req.CachedResponseCode)
 	})
 
@@ -105,6 +105,6 @@ func TestIdempotencyLayer(t *testing.T) {
 
 		req, err := q.GetRequest(ctx, createRequestParams.RequestID)
 		assert.NoError(t, err)
-		assert.Equal(t, types.StatusFailed, req.RequestStatusID)
+		assert.Equal(t, idempotencyTypes.StatusFailed, req.RequestStatusID)
 	})
 }
