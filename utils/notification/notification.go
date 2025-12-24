@@ -1,6 +1,6 @@
 package notification
 
-// RequestStatus are the possible states that notitications can be in
+// RequestStatus are the possible states that notifications can be in
 type RequestStatus int32
 
 const (

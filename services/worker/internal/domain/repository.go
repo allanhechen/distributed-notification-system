@@ -17,7 +17,7 @@ const (
 // criteria
 var ErrNoRows = errors.New("repository: no rows were found")
 
-// ErrAlreadyProcessing signifies that the message is currentlly being
+// ErrAlreadyProcessing signifies that the message is currently being
 // processed and is not yet expired.
 var ErrAlreadyProcessing = errors.New("repository: notification is already processing")
 
