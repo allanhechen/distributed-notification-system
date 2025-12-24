@@ -12,7 +12,7 @@ type FakeConsumer struct {
 
 func GetFakeConsumer() *FakeConsumer {
 	return &FakeConsumer{
-		jobs: make(chan domain.Message[domain.Notification]),
+		jobs: make(chan domain.Message[domain.Notification], 100),
 	}
 }
 

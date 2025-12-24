@@ -55,7 +55,6 @@ func (c *ConcreteNotifcationService) HandleNotifications(ctx context.Context) er
 	for range c.maxParallelism {
 		wg.Go(func() {
 			c.startWorker(ctx, jobs)
-			wg.Done()
 		})
 	}
 

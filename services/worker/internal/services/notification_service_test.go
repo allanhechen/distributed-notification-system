@@ -17,17 +17,21 @@ type fakeConcreteNotificationService struct {
 	notifier *testutil.FakeNotifier
 }
 
-func GetFakeConcreteNotificationService() fakeConcreteNotificationService {
+func GetFakeConcreteNotificationService(maxParallelism ...uint) fakeConcreteNotificationService {
+	mp := uint(1)
+	if len(maxParallelism) > 0 {
+		mp = maxParallelism[0]
+	}
+
 	db := testutil.GetFakeRepository()
 	consumer := testutil.GetFakeConsumer()
 	notifier := testutil.GetFakeNotifier()
-	maxParallelism := uint(1)
 
 	ns := &ConcreteNotifcationService{
 		db:             db,
 		consumer:       consumer,
 		notifier:       notifier,
-		maxParallelism: maxParallelism,
+		maxParallelism: mp,
 	}
 
 	return fakeConcreteNotificationService{
@@ -224,4 +228,37 @@ func TestNotificationService_ProcessMessageTimeout(t *testing.T) {
 	ns.processMessage(ctx, fakeMessage)
 	assert.Equal(t, testutil.StatusNacked, fakeMessage.Status)
 	assert.Equal(t, notification.StatusFailed, fakes.db.Db[identifier].Status)
+}
+
+func TestNotificationService_HandleNotifications(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	fakes := GetFakeConcreteNotificationService(10)
+	now := time.Now().UTC()
+	expiryTime := now.Add(time.Hour)
+	ns := fakes.ns
+
+	fakeMessages := make([]*testutil.FakeMessage, 0, 10)
+
+	for range 10 {
+		fakeNotification := testutil.GetFakeNotification()
+		fakeMessage := testutil.GetFakeMessage(fakeNotification)
+		identifier := fakeMessage.Identifier()
+
+		fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
+			ExpiresAt: expiryTime,
+			Status:    notification.StatusUndelivered,
+		}
+		fakes.consumer.AddMessage(fakeMessage)
+		fakeMessages = append(fakeMessages, fakeMessage)
+	}
+
+	err := ns.HandleNotifications(ctx)
+	assert.NoError(t, err)
+
+	for _, m := range fakeMessages {
+		assert.Equal(t, testutil.StatusAcked, m.Status)
+		assert.Equal(t, notification.StatusComplete, fakes.db.Db[m.Identifier()].Status)
+	}
 }
