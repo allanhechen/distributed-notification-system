@@ -37,7 +37,7 @@ type ConcreteNotificationService struct {
 	maxParallelism uint
 }
 
-// GetConcreteNotificationService creates a NotificationService backed by a ConcreteNotifcationService
+// GetConcreteNotificationService creates a NotificationService backed by a ConcreteNotificationService
 // using the provided repository, consumer, notifier, and worker pool size.
 // The maxParallelism parameter controls the number of worker goroutines that will process messages concurrently.
 func GetConcreteNotificationService(db domain.Repository, consumer domain.Consumer[domain.Notification], notifier domain.Notifier, maxParallelism uint) NotificationService {
@@ -52,7 +52,7 @@ func GetConcreteNotificationService(db domain.Repository, consumer domain.Consum
 func (c *ConcreteNotificationService) HandleNotifications(ctx context.Context) error {
 	jobs, err := c.consumer.Consume(ctx)
 	if err != nil {
-		slog.Error("notifcation service: failed to start consumer", "error", err)
+		slog.Error("notification service: failed to start consumer", "error", err)
 		return err
 	}
 
