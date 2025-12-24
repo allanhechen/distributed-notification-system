@@ -2,6 +2,6 @@ go 1.25.4
 
 use (
 	./services/app
-	./services/ios_worker
+	./services/worker
 	./utils
 )
