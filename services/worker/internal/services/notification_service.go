@@ -17,7 +17,7 @@ func isTransient(err error) bool {
 		return true
 	}
 	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Temporary() {
+	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
 
@@ -28,7 +28,7 @@ type NotificationService interface {
 	HandleNotifications(context.Context) error
 }
 
-type ConcreteNotifcationService struct {
+type ConcreteNotificationService struct {
 	db             domain.Repository
 	consumer       domain.Consumer[domain.Notification]
 	notifier       domain.Notifier
@@ -36,7 +36,7 @@ type ConcreteNotifcationService struct {
 }
 
 func GetConcreteNotificationService(db domain.Repository, consumer domain.Consumer[domain.Notification], notifier domain.Notifier, maxParallelism uint) NotificationService {
-	return &ConcreteNotifcationService{
+	return &ConcreteNotificationService{
 		db:             db,
 		consumer:       consumer,
 		notifier:       notifier,
@@ -44,10 +44,10 @@ func GetConcreteNotificationService(db domain.Repository, consumer domain.Consum
 	}
 }
 
-func (c *ConcreteNotifcationService) HandleNotifications(ctx context.Context) error {
+func (c *ConcreteNotificationService) HandleNotifications(ctx context.Context) error {
 	jobs, err := c.consumer.Consume(ctx)
 	if err != nil {
-		slog.Error("notifcation serice: failed to start consumer", "error", err)
+		slog.Error("notifcation service: failed to start consumer", "error", err)
 		return err
 	}
 
@@ -62,7 +62,7 @@ func (c *ConcreteNotifcationService) HandleNotifications(ctx context.Context) er
 	return nil
 }
 
-func (c *ConcreteNotifcationService) startWorker(ctx context.Context, jobs <-chan domain.Message[domain.Notification]) {
+func (c *ConcreteNotificationService) startWorker(ctx context.Context, jobs <-chan domain.Message[domain.Notification]) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -70,7 +70,7 @@ func (c *ConcreteNotifcationService) startWorker(ctx context.Context, jobs <-cha
 			return
 		case msg, ok := <-jobs:
 			if !ok {
-				slog.Error("notification service: worker tried to pull from closed channel")
+				slog.Info("notification service: worker tried to pull from closed channel")
 				return
 			}
 
@@ -79,7 +79,7 @@ func (c *ConcreteNotifcationService) startWorker(ctx context.Context, jobs <-cha
 	}
 }
 
-func (c *ConcreteNotifcationService) processMessage(ctx context.Context, msg domain.Message[domain.Notification]) {
+func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg domain.Message[domain.Notification]) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("notification service: worker recovered from panic", "panic", r)
@@ -113,7 +113,7 @@ func (c *ConcreteNotifcationService) processMessage(ctx context.Context, msg dom
 	c.updateStatusSuccess(jobCtx, identifier, msg)
 }
 
-func (c *ConcreteNotifcationService) updateStatusSuccess(jobCtx context.Context, identifier string, msg domain.Message[domain.Notification]) {
+func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context, identifier string, msg domain.Message[domain.Notification]) {
 	updateCtx, updateCancel := context.WithTimeout(context.WithoutCancel(jobCtx), domain.SuccessProcessingTime)
 	defer updateCancel()
 
@@ -135,7 +135,7 @@ func (c *ConcreteNotifcationService) updateStatusSuccess(jobCtx context.Context,
 	}
 }
 
-func (c *ConcreteNotifcationService) acquireNotificationLock(ctx context.Context, identifier string, msg domain.Message[domain.Notification]) bool {
+func (c *ConcreteNotificationService) acquireNotificationLock(ctx context.Context, identifier string, msg domain.Message[domain.Notification]) bool {
 	now := time.Now().UTC()
 	expiryTime := now.Add(domain.ProcessingLockTime)
 	err := c.db.Acquire(ctx, identifier, expiryTime)

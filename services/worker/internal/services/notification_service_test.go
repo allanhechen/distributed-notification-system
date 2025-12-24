@@ -11,7 +11,7 @@ import (
 )
 
 type fakeConcreteNotificationService struct {
-	ns       *ConcreteNotifcationService
+	ns       *ConcreteNotificationService
 	db       *testutil.FakeRepository
 	consumer *testutil.FakeConsumer
 	notifier *testutil.FakeNotifier
@@ -27,7 +27,7 @@ func GetFakeConcreteNotificationService(maxParallelism ...uint) fakeConcreteNoti
 	consumer := testutil.GetFakeConsumer()
 	notifier := testutil.GetFakeNotifier()
 
-	ns := &ConcreteNotifcationService{
+	ns := &ConcreteNotificationService{
 		db:             db,
 		consumer:       consumer,
 		notifier:       notifier,

@@ -2,11 +2,13 @@ package testutil
 
 import (
 	"context"
+	"sync"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
 )
 
 type FakeNotifier struct {
+	mu                    sync.Mutex
 	ReceivedMessages      []domain.Notification
 	SendNotificationError error
 }
@@ -22,6 +24,8 @@ func (f *FakeNotifier) SendNotification(_ context.Context, notification domain.N
 		return f.SendNotificationError
 	}
 
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.ReceivedMessages = append(f.ReceivedMessages, notification)
 
 	return nil

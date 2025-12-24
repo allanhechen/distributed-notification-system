@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
@@ -14,6 +15,7 @@ type FakeRepositoryEntry struct {
 }
 
 type FakeRepository struct {
+	mu sync.Mutex
 	Db map[string]FakeRepositoryEntry
 }
 
@@ -24,6 +26,8 @@ func GetFakeRepository() *FakeRepository {
 }
 
 func (f *FakeRepository) Acquire(_ context.Context, identifier string, expiryTime time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	entry, ok := f.Db[identifier]
 	if !ok {
 		return domain.ErrNoRows
@@ -33,7 +37,7 @@ func (f *FakeRepository) Acquire(_ context.Context, identifier string, expiryTim
 	}
 
 	now := time.Now().UTC()
-	if entry.Status == notification.StatusProcessing && expiryTime.After(now) {
+	if entry.Status == notification.StatusProcessing && entry.ExpiresAt.After(now) {
 		return domain.ErrAlreadyProcessing
 	}
 
@@ -45,6 +49,8 @@ func (f *FakeRepository) Acquire(_ context.Context, identifier string, expiryTim
 }
 
 func (f *FakeRepository) MarkSuccess(_ context.Context, identifier string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	existing, ok := f.Db[identifier]
 	if !ok {
 		return domain.ErrNoRows
@@ -61,6 +67,8 @@ func (f *FakeRepository) MarkSuccess(_ context.Context, identifier string) error
 }
 
 func (f *FakeRepository) MarkFailure(_ context.Context, identifier string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	_, ok := f.Db[identifier]
 	if !ok {
 		return domain.ErrNoRows
