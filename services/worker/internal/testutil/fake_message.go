@@ -21,6 +21,7 @@ type FakeMessage struct {
 	Status     FakeRequestStatus
 }
 
+// GetFakeMessage creates a FakeMessage initialized with the provided notification, a new unique identifier, and StatusNone as its initial status.
 func GetFakeMessage(notification domain.Notification) *FakeMessage {
 	return &FakeMessage{
 		identifier: uuid.New().String(),
