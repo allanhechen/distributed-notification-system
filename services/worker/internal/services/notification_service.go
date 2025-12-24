@@ -24,7 +24,7 @@ func isTransient(err error) bool {
 	return false
 }
 
-type NotifciationService interface {
+type NotificationService interface {
 	HandleNotifications(context.Context) error
 }
 
@@ -33,6 +33,15 @@ type ConcreteNotifcationService struct {
 	consumer       domain.Consumer[domain.Notification]
 	notifier       domain.Notifier
 	maxParallelism uint
+}
+
+func GetConcreteNotificationService(db domain.Repository, consumer domain.Consumer[domain.Notification], notifier domain.Notifier, maxParallelism uint) NotificationService {
+	return &ConcreteNotifcationService{
+		db:             db,
+		consumer:       consumer,
+		notifier:       notifier,
+		maxParallelism: maxParallelism,
+	}
 }
 
 func (c *ConcreteNotifcationService) HandleNotifications(ctx context.Context) error {
@@ -93,12 +102,15 @@ func (c *ConcreteNotifcationService) processMessage(ctx context.Context, msg dom
 	if err := c.notifier.SendNotification(jobCtx, payload); err != nil {
 		requeue := isTransient(err)
 
+		slog.Info("notification service: failed to process notification", "identifier", identifier, "error", err)
 		errCtx, errCancel := context.WithTimeout(context.WithoutCancel(jobCtx), domain.ErrorProcessingTime)
 		defer errCancel()
 		msg.Nack(errCtx, requeue)
+		c.db.MarkFailure(errCtx, msg.Identifier())
 		return
 	}
 
+	slog.Info("notification service: updating request with success status", "identifier", identifier)
 	c.updateStatusSuccess(jobCtx, identifier, msg)
 }
 
@@ -108,7 +120,11 @@ func (c *ConcreteNotifcationService) updateStatusSuccess(jobCtx context.Context,
 
 	err := c.db.MarkSuccess(updateCtx, identifier)
 	if err != nil {
-		slog.Error("notification service: failed to mark notification success", "error", err, "identifier", identifier)
+		if errors.Is(err, domain.ErrNoRows) {
+			slog.Error("notification service: message not found while marking success", "identifier", identifier)
+		} else {
+			slog.Error("notification service: failed to mark notification success", "error", err, "identifier", identifier)
+		}
 		msg.Nack(updateCtx, true)
 		return
 	}
