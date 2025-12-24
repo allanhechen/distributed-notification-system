@@ -27,6 +27,3 @@ var ProcessingTtl = 100 * time.Second
 
 // LongRequestTtl is the TTL associated with storing processed requests
 var LongRequestTtl = 24 * time.Hour
-
-// Default timeout for database operations
-var DatabaseTimeout = 24 * time.Second

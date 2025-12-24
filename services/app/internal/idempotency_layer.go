@@ -123,7 +123,7 @@ func (c *ConcreteIdempotencyLayer) Handle(ctx context.Context, requestId uuid.UU
 // return any errors because any failures at this state cannot be handled.
 func (c *ConcreteIdempotencyLayer) HandleFailure(requestId uuid.UUID) {
 	slog.Info("idempotency: setting failed request status", "requestId", requestId)
-	ctx, cancel := context.WithTimeout(context.Background(), domain.DatabaseTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), utils.DatabaseTimeout)
 	defer cancel()
 
 	q := db.New(c.pool)
