@@ -11,6 +11,7 @@ const (
 	StatusFailed      RequestStatus = 4
 )
 
+// DeviceType represents the notification targets we support
 type DeviceType int32
 
 const (
