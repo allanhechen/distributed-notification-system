@@ -11,7 +11,8 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
 )
 
-// TODO: extend this with actual errors
+// isTransient reports whether the provided error should be considered transient and therefore eligible for retry.
+// It returns true for context.DeadlineExceeded and context.Canceled, and for errors implementing net.Error whose Temporary method returns true.
 func isTransient(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return true
@@ -35,6 +36,9 @@ type ConcreteNotifcationService struct {
 	maxParallelism uint
 }
 
+// GetConcreteNotificationService creates a NotificationService backed by a ConcreteNotifcationService
+// using the provided repository, consumer, notifier, and worker pool size.
+// The maxParallelism parameter controls the number of worker goroutines that will process messages concurrently.
 func GetConcreteNotificationService(db domain.Repository, consumer domain.Consumer[domain.Notification], notifier domain.Notifier, maxParallelism uint) NotificationService {
 	return &ConcreteNotifcationService{
 		db:             db,

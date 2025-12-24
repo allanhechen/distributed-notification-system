@@ -17,6 +17,7 @@ type FakeRepository struct {
 	Db map[string]FakeRepositoryEntry
 }
 
+// GetFakeRepository creates a new FakeRepository with Db initialized as an empty map.
 func GetFakeRepository() *FakeRepository {
 	return &FakeRepository{
 		Db: make(map[string]FakeRepositoryEntry),

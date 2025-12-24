@@ -11,6 +11,8 @@ type FakeNotifier struct {
 	SendNotificationError error
 }
 
+// GetFakeNotifier returns a new FakeNotifier with ReceivedMessages initialized to an empty slice.
+// The returned FakeNotifier can be used in tests to capture notifications and optionally simulate send failures via SendNotificationError.
 func GetFakeNotifier() *FakeNotifier {
 	return &FakeNotifier{
 		ReceivedMessages: make([]domain.Notification, 0),
