@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
@@ -44,14 +43,20 @@ func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan do
 
 	backoff := uint(1)
 	for {
+		// ensure that closing context returns us
 		if ctx.Err() != nil {
-			slog.Info("consumer: received context close signal, exiting cleanly")
+			slog.Info("consumer: received context close signal, exiting")
 			return
 		}
 
 		begin := time.Now()
 		slog.Info("consumer: (re)connecting to rabbitmq")
 		r.handleIteration(ctx, outputCh)
+
+		if ctx.Err() != nil {
+			slog.Info("consumer: received context close signal, exiting")
+			return
+		}
 
 		runningTime := time.Since(begin)
 		if runningTime <= time.Duration(r.healthyTimeout*uint(time.Second)) {
@@ -95,29 +100,26 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 	}
 	defer channel.Cancel(consumer, false)
 
-	chanCh := make(chan *amqp.Error)
-	connCh := make(chan *amqp.Error)
+	chanCh := make(chan *amqp.Error, 1)
+	connCh := make(chan *amqp.Error, 1)
 	channel.NotifyClose(chanCh)
 	conn.NotifyClose(connCh)
 
-	var wg sync.WaitGroup
-	shutdownCh := make(chan struct{})
+	shutdownCh := make(chan struct{}, 1)
 
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("consumer: context cancelled, waiting for in-flight messages")
+			slog.Info("consumer: context cancelled, dropping in-flight messages")
 			close(shutdownCh)
-			wg.Wait()
-			slog.Info("consumer: all in-flight messages processed")
 			return nil
 		case <-chanCh:
+			slog.Warn("consumer: channel dropped")
 			close(shutdownCh)
-			wg.Wait()
 			return ErrConnection
 		case <-connCh:
+			slog.Warn("consumer: connection dropped")
 			close(shutdownCh)
-			wg.Wait()
 			return ErrConnection
 		case d, ok := <-inputCh:
 			if !ok {
@@ -133,16 +135,13 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 				continue
 			}
 
-			wg.Add(1)
 			notification := RabbitmqNotification{
 				payload:    payload,
 				identifier: d.MessageId,
 				ackFn: func(ctx context.Context) error {
-					defer wg.Done()
 					return d.Ack(false)
 				},
 				nackFn: func(ctx context.Context, requeue bool) error {
-					defer wg.Done()
 					return d.Nack(false, requeue)
 				},
 			}
@@ -150,7 +149,6 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 			select {
 			case <-shutdownCh:
 				d.Nack(false, true)
-				wg.Done()
 			case outputCh <- &notification:
 			}
 		}
