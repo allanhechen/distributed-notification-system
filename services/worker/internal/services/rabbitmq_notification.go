@@ -19,7 +19,7 @@ func (r *RabbitmqNotification) Payload() domain.Notification {
 }
 
 func (r *RabbitmqNotification) Identifier() string {
-	return r.Identifier()
+	return r.identifier
 }
 
 func (r *RabbitmqNotification) Ack(ctx context.Context) error {

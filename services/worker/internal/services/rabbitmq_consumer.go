@@ -20,11 +20,13 @@ type RabbitMqConsumer struct {
 	maxRetryTimeout uint
 	healthyTimeout  uint
 	prefetch        uint
+	queue           rabbitmqnotifications.QueueName
 }
 
-func NewRabbitMqConsumer(url string, maxRetryTimeout uint, healthyTimeout uint, prefetch uint) domain.Consumer[domain.Notification] {
+func NewRabbitMqConsumer(url string, queue rabbitmqnotifications.QueueName, maxRetryTimeout uint, healthyTimeout uint, prefetch uint) domain.Consumer[domain.Notification] {
 	return &RabbitMqConsumer{
 		url:             url,
+		queue:           queue,
 		maxRetryTimeout: maxRetryTimeout,
 		healthyTimeout:  healthyTimeout,
 		prefetch:        prefetch,
@@ -94,7 +96,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 	}
 
 	consumer := uuid.New().String()
-	inputCh, err := channel.Consume(string(rabbitmqnotifications.TestNotificationQueue), consumer, false, false, false, false, nil)
+	inputCh, err := channel.Consume(string(r.queue), consumer, false, false, false, false, nil)
 	if err != nil {
 		return err
 	}
@@ -107,6 +109,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 
 	shutdownCh := make(chan struct{}, 1)
 
+	slog.Info("consumer: connected successfully with rabbitmq")
 	for {
 		select {
 		case <-ctx.Done():
