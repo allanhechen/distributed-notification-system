@@ -13,8 +13,14 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// ErrConnection represents a dropped connection from RabbitMQ.
 var ErrConnection = errors.New("consumer: communication dropped with rabbitmq")
 
+// RabbitMqConsumer is a concrete implementation of the Consumer interface
+// to be used with RabbitMQ.
+//
+// It handles reconnects with exponential-backoff while simutaneously
+// being context-aware.
 type RabbitMqConsumer struct {
 	url             string
 	maxRetryTimeout uint
@@ -23,6 +29,7 @@ type RabbitMqConsumer struct {
 	queue           rabbitmqnotifications.QueueName
 }
 
+// NewRabbitMqConsumer returns an instance of RabbitMqConsumer with the given parameters.
 func NewRabbitMqConsumer(url string, queue rabbitmqnotifications.QueueName, maxRetryTimeout uint, healthyTimeout uint, prefetch uint) domain.Consumer[domain.Notification] {
 	return &RabbitMqConsumer{
 		url:             url,
@@ -33,6 +40,8 @@ func NewRabbitMqConsumer(url string, queue rabbitmqnotifications.QueueName, maxR
 	}
 }
 
+// Consume returns a channel satisfying Consumer.Consume representing a
+// series of notification messages from RabbitMQ.
 func (r *RabbitMqConsumer) Consume(ctx context.Context) (<-chan domain.Message[domain.Notification], error) {
 	outputCh := make(chan domain.Message[domain.Notification])
 
@@ -40,6 +49,13 @@ func (r *RabbitMqConsumer) Consume(ctx context.Context) (<-chan domain.Message[d
 	return outputCh, nil
 }
 
+// handleReconnect is the method handling reconnection logic. It runs
+// individual iterations using the handleIteration method, using
+// exponential backoff during failures. The backoff is reset if the
+// connection is "healthy" for healthyTimeout seconds.
+//
+// handleIteration must be completed before closing this channel. The
+// current implementation runs handleIteration synchronously.
 func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan domain.Message[domain.Notification]) {
 	defer close(outputCh)
 
@@ -78,6 +94,8 @@ func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan do
 	}
 }
 
+// handleIteration connects to RabbitMQ with its own connection and
+// channel. It streams the received messages to the output channel.
 func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan domain.Message[domain.Notification]) error {
 	conn, err := amqp.Dial(r.url)
 	if err != nil {
