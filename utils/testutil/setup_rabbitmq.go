@@ -12,14 +12,18 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 )
 
+// RabbitMqContainer is a struct representing a testcontainers/rabbitmq
+// instances intended to be used for testing.
 type RabbitMqContainer struct {
 	rabbitmqContainer  testcontainers.Container
 	toxiproxyContainer testcontainers.Container
 	ConnString         string
-	containerId        string
 	proxy              *toxiproxy.Proxy
+	nw                 *testcontainers.DockerNetwork
 }
 
+// GetRabbitMqContainer initializes a testcontainer for RabbitMQ and
+// toxiproxy in the form of a RabbitMqContainer.
 func GetRabbitMqContainer(ctx context.Context) (*RabbitMqContainer, error) {
 	const (
 		user           = "guest"
@@ -36,7 +40,6 @@ func GetRabbitMqContainer(ctx context.Context) (*RabbitMqContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-	containerId := rmc.GetContainerID()
 
 	tpc, err := toxiproxyTc.Run(
 		ctx,
@@ -64,19 +67,25 @@ func GetRabbitMqContainer(ctx context.Context) (*RabbitMqContainer, error) {
 		rabbitmqContainer:  rmc,
 		toxiproxyContainer: tpc,
 		ConnString:         connString,
-		containerId:        containerId,
 		proxy:              proxy,
+		nw:                 nw,
 	}, nil
 }
 
+// Disconnect disconnects the network interface of the RabbitMQ container
+// using toxiproxy.
 func (r *RabbitMqContainer) Disconnect() error {
 	return r.proxy.Disable()
 }
 
+// Reconnect reconnects the network interface of the RabbitMQ container
+// using toxiproxy.
 func (r *RabbitMqContainer) Reconnect() error {
 	return r.proxy.Enable()
 }
 
+// Close closes all containers associated with a RabbitMqContainer, and
+// removes the network interface.
 func (r *RabbitMqContainer) Close(ctx context.Context) error {
 	err := r.toxiproxyContainer.Terminate(ctx)
 	if err != nil {
@@ -86,9 +95,15 @@ func (r *RabbitMqContainer) Close(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	err = r.nw.Remove(ctx)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
+// DeclareEntities uses the utility function to declare RabbitMQ entities
+// for the associated testcontainer instance.
 func (r *RabbitMqContainer) DeclareEntities(ctx context.Context) error {
 	return rabbitmqnotifications.DeclareEntities(ctx, r.ConnString)
 }
