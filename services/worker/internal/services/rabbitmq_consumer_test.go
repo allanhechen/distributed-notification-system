@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,6 +64,32 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 
 	assert.Equal(t, notifications, result)
 	cancel()
+
+	c.Close(ctx)
+}
+
+func TestRabbitMqConsumer_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// set up container
+	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
+	require.NoError(t, err)
+	err = c.DeclareEntities(ctx)
+	require.NoError(t, err)
+
+	// listen to messages
+	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	out, err := consumer.Consume(ctx)
+	assert.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	wg.Go(func() {
+		<-out
+	})
+
+	cancel()
+	wg.Wait()
 
 	c.Close(ctx)
 }
