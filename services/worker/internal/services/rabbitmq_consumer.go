@@ -138,7 +138,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 				continue
 			}
 
-			notification := RabbitmqNotification{
+			notification := RabbitMqNotification{
 				payload:    payload,
 				identifier: d.MessageId,
 				ackFn: func(ctx context.Context) error {

@@ -6,7 +6,7 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
 )
 
-type RabbitmqNotification struct {
+type RabbitMqNotification struct {
 	payload        domain.Notification
 	identifier     string
 	alreadyReplied bool
@@ -14,22 +14,22 @@ type RabbitmqNotification struct {
 	nackFn         func(ctx context.Context, requeue bool) error
 }
 
-func (r *RabbitmqNotification) Payload() domain.Notification {
+func (r *RabbitMqNotification) Payload() domain.Notification {
 	return r.payload
 }
 
-func (r *RabbitmqNotification) Identifier() string {
+func (r *RabbitMqNotification) Identifier() string {
 	return r.identifier
 }
 
-func (r *RabbitmqNotification) Ack(ctx context.Context) error {
+func (r *RabbitMqNotification) Ack(ctx context.Context) error {
 	if r.alreadyReplied {
 		return domain.ErrAlreadyReplied
 	}
 	return r.ackFn(ctx)
 }
 
-func (r *RabbitmqNotification) Nack(ctx context.Context, requeue bool) error {
+func (r *RabbitMqNotification) Nack(ctx context.Context, requeue bool) error {
 	if r.alreadyReplied {
 		return domain.ErrAlreadyReplied
 	}
