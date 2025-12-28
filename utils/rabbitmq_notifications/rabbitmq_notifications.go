@@ -1,3 +1,5 @@
+// rabbitmqnotifications contains definitions for the persistent RabbitMQ
+// entities, and a utility function to declare them.
 package rabbitmqnotifications
 
 import (
@@ -7,6 +9,15 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// DeclareEntities is a context-aware utility function used to declare
+// RabbitMQ entities during service initialization. This utility does not
+// attempt to handle any errors raised during initialization, and instead
+// returns them.
+//
+// The url parameter denotes the RabbitMQ instance to have entities
+// declared against. The entities are hard-coded within the other files
+// within this package, which is acceptable because they will not change
+// frequently.
 func DeclareEntities(ctx context.Context, url string) error {
 	conn, err := amqp.Dial(url)
 	if err != nil {

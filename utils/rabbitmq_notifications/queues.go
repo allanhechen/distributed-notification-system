@@ -2,6 +2,7 @@ package rabbitmqnotifications
 
 import amqp "github.com/rabbitmq/amqp091-go"
 
+// QueueName is the type denoting queue names.
 type QueueName string
 
 type amqpQueue struct {
@@ -18,10 +19,17 @@ var quorumQueueArgs = amqp.Table{
 }
 
 const (
-	TestNotificationQueue    = "test"
-	AppleNotificationQueue   = "apple"
+	// TestNotificationQueue is the queue dedicated for test devices.
+	TestNotificationQueue = "test"
+
+	// AppleNotificationQueue is the queue dedicated for Apple devices (IOS, MacOS).
+	AppleNotificationQueue = "apple"
+
+	// AndroidNotificationQueue is the queue dedicated for Android devices.
 	AndroidNotificationQueue = "android"
-	EmailNotificationQueue   = "email"
+
+	// EmailNotificationQueue is the queue dedicated for email devices.
+	EmailNotificationQueue = "email"
 )
 
 var queues = []amqpQueue{

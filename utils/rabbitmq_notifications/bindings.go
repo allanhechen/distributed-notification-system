@@ -10,13 +10,21 @@ type amqpBinding struct {
 	args     amqp.Table
 }
 
+// RoutingKey is the type for RabbitMQ routing keys.
 type RoutingKey = string
 
 const (
-	TestNotificationKey    RoutingKey = "notifications.test"
-	AppleNotificationKey   RoutingKey = "notifications.apple"
+	// TestNotificationKey sends messages to the test queue.
+	TestNotificationKey RoutingKey = "notifications.test"
+
+	// AppleNotificationKey sends messages to the Apple device queue (IOS, MacOS).
+	AppleNotificationKey RoutingKey = "notifications.apple"
+
+	// AndroidNotificationKey sends messages to the Android device queue.
 	AndroidNotificationKey RoutingKey = "notifications.android"
-	EmailNotificationKey   RoutingKey = "notifications.email"
+
+	// EmailNotificationKey sends messages to the email device queue.
+	EmailNotificationKey RoutingKey = "notifications.email"
 )
 
 var bindings = []amqpBinding{

@@ -2,6 +2,7 @@ package rabbitmqnotifications
 
 import amqp "github.com/rabbitmq/amqp091-go"
 
+// ExchangeName is the type denoting an exchange name.
 type ExchangeName string
 
 type amqpExchange struct {
@@ -15,6 +16,7 @@ type amqpExchange struct {
 }
 
 const (
+	// NotificationExchange is the exchange used to route notifications.
 	NotificationExchange = "notifications"
 )
 
