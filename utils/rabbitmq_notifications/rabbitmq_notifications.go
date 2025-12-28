@@ -5,6 +5,7 @@ package rabbitmqnotifications
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -19,53 +20,56 @@ import (
 // within this package, which is acceptable because they will not change
 // frequently.
 func DeclareEntities(ctx context.Context, url string) error {
-	conn, err := amqp.Dial(url)
+	config := amqp.Config{
+		Dial: amqp.DefaultDial(5 * time.Second),
+	}
+	conn, err := amqp.DialConfig(url, config)
 	if err != nil {
-		slog.Error("rabbitmq notifications: failed to open connection")
+		slog.Error("rabbitmq notifications: failed to open connection", "error", err)
 		return err
 	}
 	defer conn.Close()
 
 	channel, err := conn.Channel()
 	if err != nil {
-		slog.Error("rabbitmq notifications: failed to open channel")
+		slog.Error("rabbitmq notifications: failed to open channel", "error", err)
 		return err
 	}
 	defer channel.Close()
 
 	if ctx.Err() != nil {
 		slog.Warn("rabbitmq notifications: context closed before declaring entities, exiting")
-		return err
+		return ctx.Err()
 	}
 
 	slog.Info("rabbitmq notifications: begin declaring exchanges")
 	for _, e := range exchanges {
 		err = channel.ExchangeDeclare(string(e.name), e.kind, e.durable, e.autoDelete, e.internal, e.noWait, e.args)
-		slog.Info("rabbitmq notifications: declaring exchange", "name", e.name)
 		if err != nil {
 			slog.Error("rabbitmq notifications: failed to declare exchange", "error", err)
 			return err
 		}
+		slog.Info("rabbitmq notifications: declared exchange", "name", e.name)
 	}
 
 	slog.Info("rabbitmq notifications: begin declaring queues")
 	for _, q := range queues {
 		_, err = channel.QueueDeclare(string(q.name), q.durable, q.autoDelete, q.exclusive, q.noWait, q.args)
-		slog.Info("rabbitmq notifications: declaring queue", "name", q.name)
 		if err != nil {
 			slog.Error("rabbitmq notifications: failed to declare queue", "error", err)
 			return err
 		}
+		slog.Info("rabbitmq notifications: declared queue", "name", q.name)
 	}
 
 	slog.Info("rabbitmq notifications: begin declaring bindings")
 	for _, b := range bindings {
 		err = channel.QueueBind(string(b.name), b.key, string(b.exchange), b.noWait, b.args)
-		slog.Info("rabbitmq notifications: declaring binding", "name", b.name)
 		if err != nil {
 			slog.Error("rabbitmq notifications: failed to declare binding", "error", err)
 			return err
 		}
+		slog.Info("rabbitmq notifications: declared binding", "name", b.name)
 	}
 
 	slog.Info("rabbitmq notifications: successful initialization")
