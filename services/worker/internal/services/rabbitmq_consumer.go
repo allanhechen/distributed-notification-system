@@ -151,10 +151,9 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 			var payload domain.Notification
 			err := json.Unmarshal(d.Body, &payload)
 			if err != nil {
+				slog.Error("consumer: failed to unmarshal message body", "body", d.Body)
 				if nackErr := d.Nack(false, false); nackErr != nil {
 					slog.Error("consumer: failed to nack malformed message", "error", nackErr)
-				} else {
-					slog.Error("consumer: failed to unmarshal message body", "body", d.Body)
 				}
 				continue
 			}
@@ -172,7 +171,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 
 			select {
 			case <-shutdownCh:
-				if nackErr := d.Nack(false, false); nackErr != nil {
+				if nackErr := d.Nack(false, true); nackErr != nil {
 					slog.Error("consumer: failed to nack message during shutdown", "error", nackErr)
 				}
 			case outputCh <- &notification:
