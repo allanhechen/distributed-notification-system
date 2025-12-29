@@ -36,7 +36,7 @@ func PublishMessages(
 
 	for _, n := range notifications {
 		if ctx.Err() != nil {
-			slog.Error("publish messages: context cancelled while publishing messages")
+			slog.Warn("publish messages: context cancelled while publishing messages")
 			return ctx.Err()
 		}
 

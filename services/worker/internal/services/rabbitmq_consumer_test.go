@@ -22,6 +22,8 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 	// set up container
 	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
 	require.NoError(t, err)
+	defer c.Close(context.Background())
+
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
@@ -64,8 +66,6 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 
 	assert.Equal(t, notifications, result)
 	cancel()
-
-	c.Close(ctx)
 }
 
 func TestRabbitMqConsumer_ContextCancellation(t *testing.T) {
@@ -74,6 +74,8 @@ func TestRabbitMqConsumer_ContextCancellation(t *testing.T) {
 	// set up container
 	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
 	require.NoError(t, err)
+	defer c.Close(context.Background())
+
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
@@ -90,8 +92,6 @@ func TestRabbitMqConsumer_ContextCancellation(t *testing.T) {
 
 	cancel()
 	wg.Wait()
-
-	c.Close(ctx)
 }
 
 func TestRabbitMqConsumer_Reconnect(t *testing.T) {
@@ -100,6 +100,8 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 	// set up container
 	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
 	require.NoError(t, err)
+	defer c.Close(context.Background())
+
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
@@ -160,8 +162,6 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 
 	assert.Equal(t, notifications, result)
 	cancel()
-
-	c.Close(ctx)
 }
 
 func TestRabbitMqConsumer_Ack(t *testing.T) {
@@ -170,6 +170,8 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 	// set up container
 	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
 	require.NoError(t, err)
+	defer c.Close(context.Background())
+
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
@@ -202,7 +204,6 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 	}
 
 	cancel()
-	c.Close(ctx)
 }
 
 func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
@@ -211,6 +212,8 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 	// set up container
 	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
 	require.NoError(t, err)
+	defer c.Close(context.Background())
+
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
@@ -243,7 +246,6 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 	}
 
 	cancel()
-	c.Close(ctx)
 }
 
 func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
@@ -252,6 +254,8 @@ func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 	// set up container
 	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
 	require.NoError(t, err)
+	defer c.Close(context.Background())
+
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
@@ -285,5 +289,4 @@ func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 	}
 
 	cancel()
-	c.Close(ctx)
 }

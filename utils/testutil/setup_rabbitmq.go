@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
@@ -26,11 +27,13 @@ type RabbitMqContainer struct {
 // toxiproxy in the form of a RabbitMqContainer.
 func GetRabbitMqContainer(ctx context.Context) (*RabbitMqContainer, error) {
 	const (
-		user           = "guest"
-		password       = "guest"
-		containerAlias = "rabbitmq"
+		user     = "guest"
+		password = "guest"
 	)
 	nw, err := network.New(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	rmc, err := rabbitmq.Run(ctx, "rabbitmq:4.1.4-alpine",
 		rabbitmq.WithAdminUsername(user),
@@ -47,6 +50,10 @@ func GetRabbitMqContainer(ctx context.Context) (*RabbitMqContainer, error) {
 		network.WithNetwork([]string{"toxiproxy"}, nw),
 		toxiproxyTc.WithProxy("rabbitmq-proxy", "rabbitmq:5672"),
 	)
+	if err != nil {
+		return nil, err
+	}
+
 	toxiURI, err := tpc.URI(ctx)
 	if err != nil {
 		return nil, err
@@ -87,19 +94,17 @@ func (r *RabbitMqContainer) Reconnect() error {
 // Close closes all containers associated with a RabbitMqContainer, and
 // removes the network interface.
 func (r *RabbitMqContainer) Close(ctx context.Context) error {
-	err := r.toxiproxyContainer.Terminate(ctx)
-	if err != nil {
-		return err
+	var errs []error
+	if err := r.toxiproxyContainer.Terminate(ctx); err != nil {
+		errs = append(errs, err)
 	}
-	err = r.rabbitmqContainer.Terminate(ctx)
-	if err != nil {
-		return err
+	if err := r.rabbitmqContainer.Terminate(ctx); err != nil {
+		errs = append(errs, err)
 	}
-	err = r.nw.Remove(ctx)
-	if err != nil {
-		return err
+	if err := r.nw.Remove(ctx); err != nil {
+		errs = append(errs, err)
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // DeclareEntities uses the utility function to declare RabbitMQ entities

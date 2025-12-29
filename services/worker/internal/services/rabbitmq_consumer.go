@@ -19,7 +19,7 @@ var ErrConnection = errors.New("consumer: communication dropped with rabbitmq")
 // RabbitMqConsumer is a concrete implementation of the Consumer interface
 // to be used with RabbitMQ.
 //
-// It handles reconnects with exponential-backoff while simutaneously
+// It handles reconnects with exponential-backoff while simultaneously
 // being context-aware.
 type RabbitMqConsumer struct {
 	url             string
@@ -77,7 +77,7 @@ func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan do
 		}
 
 		runningTime := time.Since(begin)
-		if runningTime <= time.Duration(r.healthyTimeout*uint(time.Second)) {
+		if runningTime <= time.Duration(r.healthyTimeout)*time.Second {
 			backoff = min(backoff*2, r.maxRetryTimeout)
 			slog.Info("consumer: previous iteration failed, waiting for backoff", "backoff", backoff)
 
@@ -151,8 +151,11 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 			var payload domain.Notification
 			err := json.Unmarshal(d.Body, &payload)
 			if err != nil {
-				d.Nack(false, false)
-				slog.Error("consumer: failed to unmarshal message body", "body", d.Body)
+				if nackErr := d.Nack(false, false); nackErr != nil {
+					slog.Error("consumer: failed to nack malformed message", "error", nackErr)
+				} else {
+					slog.Error("consumer: failed to unmarshal message body", "body", d.Body)
+				}
 				continue
 			}
 
@@ -169,7 +172,9 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 
 			select {
 			case <-shutdownCh:
-				d.Nack(false, true)
+				if nackErr := d.Nack(false, false); nackErr != nil {
+					slog.Error("consumer: failed to nack message during shutdown", "error", nackErr)
+				}
 			case outputCh <- &notification:
 			}
 		}

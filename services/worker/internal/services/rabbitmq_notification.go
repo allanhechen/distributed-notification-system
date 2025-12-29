@@ -31,13 +31,15 @@ func (r *RabbitMqNotification) Ack(ctx context.Context) error {
 	if r.alreadyReplied {
 		return domain.ErrAlreadyReplied
 	}
+	r.alreadyReplied = true
 	return r.ackFn(ctx)
 }
 
-// Nack sends a NACK to RabbitMQ by cakking the nackFn. Requeue optional.
+// Nack sends a NACK to RabbitMQ by calling the nackFn. Requeue optional.
 func (r *RabbitMqNotification) Nack(ctx context.Context, requeue bool) error {
 	if r.alreadyReplied {
 		return domain.ErrAlreadyReplied
 	}
+	r.alreadyReplied = true
 	return r.nackFn(ctx, requeue)
 }
