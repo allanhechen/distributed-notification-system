@@ -3,14 +3,12 @@ module github.com/allanhechen/distributed-notification-system/services/app
 go 1.25.4
 
 require (
-	github.com/allanhechen/distributed-notification-system/utils v0.0.0-20251212200530-c8910911f259
+	github.com/allanhechen/distributed-notification-system/utils v0.0.0-20251228183607-b7ffddcb52f1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
-	github.com/jackc/pgx/v5 v5.7.6
-	github.com/joho/godotenv v1.5.1
-	github.com/lmittmann/tint v1.1.2
+	github.com/jackc/pgx/v5 v5.8.0
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
 	github.com/testcontainers/testcontainers-go/modules/cockroachdb v0.40.0
@@ -38,8 +36,10 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
+	github.com/lmittmann/tint v1.1.2 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
