@@ -48,7 +48,7 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count ui
 			now.After(v.LockExpiryTime) &&
 			v.FailedQueueAttempts < f.queueRetryLimit {
 
-			v.LockExpiryTime = time.Now().UTC().Add(domain.MessageLockDuration)
+			v.LockExpiryTime = now.Add(domain.MessageLockDuration)
 			r = append(r, v)
 			f.entries[k] = v
 		}

@@ -46,7 +46,7 @@ func (f *FakeMqService) AddFailedIdentifier(u uuid.UUID) {
 	f.failIdentifiers[u] = struct{}{}
 }
 
-// AddFailedIdentifier removes notification failure markers, allowing
+// RemoveFailedIdentifier removes notification failure markers, allowing
 // once-failing notifications to succeed again.
 func (f *FakeMqService) RemoveFailedIdentifier(u uuid.UUID) {
 	delete(f.failIdentifiers, u)
