@@ -4,11 +4,25 @@ package notification
 type RequestStatus int32
 
 const (
+	// StatusUndelivered is a new notification not yet processed.
 	StatusUndelivered RequestStatus = 0
-	StatusQueued      RequestStatus = 1
-	StatusProcessing  RequestStatus = 2
-	StatusComplete    RequestStatus = 3
-	StatusFailed      RequestStatus = 4
+
+	// StatusLocked is a notification picked up by the outbox processor
+	// but not yet confirmed to be delivered into the message queue.
+	StatusLocked RequestStatus = 1
+
+	// StatusQueued is a notification waiting in the message queue.
+	StatusQueued RequestStatus = 2
+
+	// StatusProcessing is a notification being processed by a worker.
+	StatusProcessing RequestStatus = 3
+
+	// StatusComplete is a notification successfully delivered by a
+	// worker.
+	StatusComplete RequestStatus = 4
+
+	// StatusFailed is a notification that could not be delivered.
+	StatusFailed RequestStatus = 5
 )
 
 // DeviceType represents the notification targets we support
