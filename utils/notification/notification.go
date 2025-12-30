@@ -1,5 +1,7 @@
 package notification
 
+import "github.com/google/uuid"
+
 // RequestStatus are the possible states that notifications can be in
 type RequestStatus int32
 
@@ -38,8 +40,9 @@ const (
 // Notification is an abstraction around a notification sent through a
 // message queue. Intended to be the payload of a Message.
 type Notification struct {
-	Identifier       string
+	Identifier       uuid.UUID
 	NotificationType DeviceType
-	DeviceIdentifier string
+	Status           RequestStatus
+	DeviceIdentifier uuid.UUID
 	Message          string
 }
