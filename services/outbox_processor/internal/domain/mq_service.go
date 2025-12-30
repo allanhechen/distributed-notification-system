@@ -10,7 +10,7 @@ import (
 // queue.
 type MqService interface {
 	// SendNotification sends a notification to the implementor's message queue.
-	// It sends responses (ACK/NACK) to the given channel, intended to be used with
-	// a ResponseService to update the statuses within the database.
+	// It sends updated statuses to the given channel. SendNotification is
+	// responsible for the end state of the given notifications.
 	SendNotification(ctx context.Context, n notification.Notification, maxQueueAttempts uint, responses chan<- StatusUpdate) error
 }
