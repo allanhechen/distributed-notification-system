@@ -1,0 +1,4 @@
+github.com/allanhechen/distributed-notification-system/utils v0.0.0-20251229010304-5a5391b15050 h1:i/rtG9SP0z/xEwk6kmmR29rB2JtmIve8aeu8Y7CBFa0=
+github.com/allanhechen/distributed-notification-system/utils v0.0.0-20251229010304-5a5391b15050/go.mod h1:DKSfQHiEuhI+v0bbtpij85X5o2ds8X0hVcQQfEbRNlY=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
