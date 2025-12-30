@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
 	rabbitmqnotifications "github.com/allanhechen/distributed-notification-system/utils/rabbitmq_notifications"
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -30,7 +31,7 @@ type RabbitMqConsumer struct {
 }
 
 // NewRabbitMqConsumer returns an instance of RabbitMqConsumer with the given parameters.
-func NewRabbitMqConsumer(url string, queue rabbitmqnotifications.QueueName, maxRetryTimeout uint, healthyTimeout uint, prefetch uint) domain.Consumer[domain.Notification] {
+func NewRabbitMqConsumer(url string, queue rabbitmqnotifications.QueueName, maxRetryTimeout uint, healthyTimeout uint, prefetch uint) domain.Consumer[notification.Notification] {
 	return &RabbitMqConsumer{
 		url:             url,
 		queue:           queue,
@@ -42,8 +43,8 @@ func NewRabbitMqConsumer(url string, queue rabbitmqnotifications.QueueName, maxR
 
 // Consume returns a channel satisfying Consumer.Consume representing a
 // series of notification messages from RabbitMQ.
-func (r *RabbitMqConsumer) Consume(ctx context.Context) (<-chan domain.Message[domain.Notification], error) {
-	outputCh := make(chan domain.Message[domain.Notification])
+func (r *RabbitMqConsumer) Consume(ctx context.Context) (<-chan domain.Message[notification.Notification], error) {
+	outputCh := make(chan domain.Message[notification.Notification])
 
 	go r.handleReconnect(ctx, outputCh)
 	return outputCh, nil
@@ -56,7 +57,7 @@ func (r *RabbitMqConsumer) Consume(ctx context.Context) (<-chan domain.Message[d
 //
 // handleIteration must be completed before closing this channel. The
 // current implementation runs handleIteration synchronously.
-func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan domain.Message[domain.Notification]) {
+func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan domain.Message[notification.Notification]) {
 	defer close(outputCh)
 
 	backoff := uint(1)
@@ -96,7 +97,7 @@ func (r *RabbitMqConsumer) handleReconnect(ctx context.Context, outputCh chan do
 
 // handleIteration connects to RabbitMQ with its own connection and
 // channel. It streams the received messages to the output channel.
-func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan domain.Message[domain.Notification]) error {
+func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan domain.Message[notification.Notification]) error {
 	conn, err := amqp.Dial(r.url)
 	if err != nil {
 		return err
@@ -148,7 +149,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 				return nil
 			}
 
-			var payload domain.Notification
+			var payload notification.Notification
 			err := json.Unmarshal(d.Body, &payload)
 			if err != nil {
 				slog.Error("consumer: failed to unmarshal message body", "body", d.Body)

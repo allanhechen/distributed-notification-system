@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
 )
 
 // LogNotifier is a notifier that sends notifications to the slog.
@@ -17,7 +18,7 @@ func GetLogNotifier() domain.Notifier {
 }
 
 // SendNotification sends a notification to the slog.
-func (c *LogNotifier) SendNotification(ctx context.Context, notification domain.Notification) error {
+func (c *LogNotifier) SendNotification(ctx context.Context, notification notification.Notification) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}

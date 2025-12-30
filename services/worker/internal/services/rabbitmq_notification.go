@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
 )
 
 // RabbitMqNotification is a concrete implementation of the Message
 // interface for RabbitMQ messages and domain notifications.
 type RabbitMqNotification struct {
-	payload        domain.Notification
+	payload        notification.Notification
 	identifier     string
 	alreadyReplied bool
 	ackFn          func(ctx context.Context) error
@@ -17,7 +18,7 @@ type RabbitMqNotification struct {
 }
 
 // Payload retrieves the payload of this message.
-func (r *RabbitMqNotification) Payload() domain.Notification {
+func (r *RabbitMqNotification) Payload() notification.Notification {
 	return r.payload
 }
 
