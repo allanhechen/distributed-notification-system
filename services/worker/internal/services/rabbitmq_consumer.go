@@ -159,7 +159,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 				continue
 			}
 
-			notification := RabbitMqNotification{
+			n := RabbitMqNotification{
 				payload:                payload,
 				notificationIdentifier: payload.Identifier,
 				ackFn: func(ctx context.Context) error {
@@ -175,7 +175,7 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 				if nackErr := d.Nack(false, true); nackErr != nil {
 					slog.Error("consumer: failed to nack message during shutdown", "error", nackErr)
 				}
-			case outputCh <- &notification:
+			case outputCh <- &n:
 			}
 		}
 	}

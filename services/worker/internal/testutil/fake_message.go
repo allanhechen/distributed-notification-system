@@ -23,10 +23,10 @@ type FakeMessage struct {
 }
 
 // GetFakeMessage creates a FakeMessage initialized with the provided notification, a new unique identifier, and StatusNone as its initial status.
-func GetFakeMessage(notification notification.Notification) *FakeMessage {
+func GetFakeMessage(n notification.Notification) *FakeMessage {
 	return &FakeMessage{
 		identifier: uuid.New(),
-		payload:    notification,
+		payload:    n,
 		Status:     StatusNone,
 	}
 }

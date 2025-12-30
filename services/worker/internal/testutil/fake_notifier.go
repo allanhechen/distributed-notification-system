@@ -21,14 +21,14 @@ func GetFakeNotifier() *FakeNotifier {
 	}
 }
 
-func (f *FakeNotifier) SendNotification(_ context.Context, notification notification.Notification) error {
+func (f *FakeNotifier) SendNotification(_ context.Context, n notification.Notification) error {
 	if f.SendNotificationError != nil {
 		return f.SendNotificationError
 	}
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.ReceivedMessages = append(f.ReceivedMessages, notification)
+	f.ReceivedMessages = append(f.ReceivedMessages, n)
 
 	return nil
 }

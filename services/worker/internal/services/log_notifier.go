@@ -18,10 +18,10 @@ func GetLogNotifier() domain.Notifier {
 }
 
 // SendNotification sends a notification to the slog.
-func (c *LogNotifier) SendNotification(ctx context.Context, notification notification.Notification) error {
+func (c *LogNotifier) SendNotification(ctx context.Context, n notification.Notification) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	slog.Info("notifier: received notification", "message", notification.Message)
+	slog.Info("notifier: received notification", "message", n.Message)
 	return nil
 }

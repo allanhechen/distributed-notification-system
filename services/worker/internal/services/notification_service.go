@@ -112,7 +112,7 @@ func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg do
 		errCtx, errCancel := context.WithTimeout(context.WithoutCancel(jobCtx), domain.ErrorProcessingTime)
 		defer errCancel()
 		msg.Nack(errCtx, requeue)
-		c.db.MarkFailure(errCtx, msg.Identifier())
+		c.db.MarkFailure(errCtx, identifier)
 		return
 	}
 
