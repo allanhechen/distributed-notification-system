@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"sync"
 
 	"github.com/allanhechen/distributed-notification-system/services/outbox_processor/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/utils/notification"
@@ -10,6 +11,7 @@ import (
 
 // FakeMqService is a fake implementation of MqService.
 type FakeMqService struct {
+	mu              sync.Mutex
 	failIdentifiers map[uuid.UUID]struct{}
 }
 
@@ -26,6 +28,8 @@ func GetFakeMqService() *FakeMqService {
 // A notification is "failed" to be sent if it exists within the failed
 // set contained within memory.
 func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notification, responses chan<- domain.StatusUpdate) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	resp := domain.StatusUpdate{
 		Identifier: n.Identifier,
 	}
@@ -43,11 +47,15 @@ func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notif
 // AddFailedIdentifier adds additional notifications that will fail to
 // deliver.
 func (f *FakeMqService) AddFailedIdentifier(u uuid.UUID) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.failIdentifiers[u] = struct{}{}
 }
 
 // RemoveFailedIdentifier removes notification failure markers, allowing
 // once-failing notifications to succeed again.
 func (f *FakeMqService) RemoveFailedIdentifier(u uuid.UUID) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	delete(f.failIdentifiers, u)
 }
