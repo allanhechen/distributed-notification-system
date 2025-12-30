@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"context"
-	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/outbox_processor/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/utils/notification"
@@ -22,27 +21,19 @@ func GetFakeMqService() *FakeMqService {
 }
 
 // SendNotification pretends to send a notification with the message
-// queue, and returns responses to the provided channel. SendNotification
-// also handles business logic to determine the final state of the given
-// notifications.
+// queue, and returns responses to the provided channel.
 //
 // A notification is "failed" to be sent if it exists within the failed
 // set contained within memory.
-func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notification, maxQueueAttempts uint, responses chan<- domain.StatusUpdate) error {
+func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notification, responses chan<- domain.StatusUpdate) error {
 	resp := domain.StatusUpdate{
-		Identifier:     n.Identifier,
-		LockExpiryTime: time.Time{},
+		Identifier: n.Identifier,
 	}
 	_, ok := f.failIdentifiers[n.Identifier]
 	if !ok {
 		resp.FinalStatus = notification.StatusQueued
-		resp.FailedQueueAttempts = n.FailedQueueAttempts
-	} else if n.FailedQueueAttempts+1 >= maxQueueAttempts {
-		resp.FinalStatus = notification.StatusFailed
-		resp.FailedQueueAttempts = n.FailedQueueAttempts + 1
 	} else {
 		resp.FinalStatus = notification.StatusUndelivered
-		resp.FailedQueueAttempts = n.FailedQueueAttempts + 1
 	}
 
 	responses <- resp

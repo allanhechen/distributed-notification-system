@@ -6,29 +6,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const DefaultQueueRetryLimit = 3
+
 // RequestStatus are the possible states that notifications can be in
 type RequestStatus int32
 
 const (
-	// StatusUndelivered is a new notification not yet processed.
+	// StatusUndelivered is a notification never sent to the queue.
 	StatusUndelivered RequestStatus = 0
 
-	// StatusLocked is a notification picked up by the outbox processor
-	// but not yet confirmed to be delivered into the message queue.
-	StatusLocked RequestStatus = 1
-
 	// StatusQueued is a notification waiting in the message queue.
-	StatusQueued RequestStatus = 2
+	StatusQueued RequestStatus = 1
 
 	// StatusProcessing is a notification being processed by a worker.
-	StatusProcessing RequestStatus = 3
+	StatusProcessing RequestStatus = 2
 
 	// StatusComplete is a notification successfully delivered by a
 	// worker.
-	StatusComplete RequestStatus = 4
+	StatusComplete RequestStatus = 3
 
 	// StatusFailed is a notification that could not be delivered.
-	StatusFailed RequestStatus = 5
+	StatusFailed RequestStatus = 4
 )
 
 // DeviceType represents the notification targets we support
@@ -49,6 +47,6 @@ type Notification struct {
 	Status              RequestStatus
 	DeviceIdentifier    uuid.UUID
 	Message             string
-	FailedQueueAttempts uint
+	FailedQueueAttempts int
 	LockExpiryTime      time.Time
 }

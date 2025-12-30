@@ -10,7 +10,6 @@ import (
 // queue.
 type MqService interface {
 	// SendNotification sends a notification to the implementor's message queue.
-	// It sends updated statuses to the given channel. SendNotification is
-	// responsible for the end state of the given notifications.
-	SendNotification(ctx context.Context, n notification.Notification, maxQueueAttempts uint, responses chan<- StatusUpdate) error
+	// It sends updated statuses to the given channel.
+	SendNotification(ctx context.Context, n notification.Notification, responses chan<- StatusUpdate) error
 }

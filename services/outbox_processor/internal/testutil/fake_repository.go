@@ -14,14 +14,16 @@ import (
 
 // FakeRepository is an in-memory implementation of the repository.
 type FakeRepository struct {
-	mu      sync.Mutex
-	entries map[uuid.UUID]notification.Notification
+	mu              sync.Mutex
+	entries         map[uuid.UUID]notification.Notification
+	queueRetryLimit int
 }
 
 // GetFakeRepository returns an instance of the fake repository.
 func GetFakeRepository() *FakeRepository {
 	return &FakeRepository{
-		entries: make(map[uuid.UUID]notification.Notification),
+		entries:         make(map[uuid.UUID]notification.Notification),
+		queueRetryLimit: notification.DefaultQueueRetryLimit,
 	}
 }
 
@@ -36,14 +38,19 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count ui
 	now := time.Now().UTC()
 
 	// loop through entries until full
-	for _, v := range f.entries {
+	for k, v := range f.entries {
 		if len(r) == int(count) {
 			break
 		}
 
-		// fetch undelivered or locked and expired entries
-		if v.Status == notification.StatusUndelivered || (v.Status == notification.StatusLocked && now.After(v.LockExpiryTime)) {
+		// fetch undelivered notifications with queue attempts remaining
+		if v.Status == notification.StatusUndelivered &&
+			now.After(v.LockExpiryTime) &&
+			v.FailedQueueAttempts < f.queueRetryLimit {
+
+			v.LockExpiryTime = time.Now().UTC().Add(domain.MessageLockDuration)
 			r = append(r, v)
+			f.entries[k] = v
 		}
 	}
 
@@ -70,14 +77,11 @@ func (f *FakeRepository) UpdateNotificationStatuses(_ context.Context, updates [
 			continue
 		}
 
-		// if another iteration took place after this one we don't care
-		if n.LockExpiryTime != u.LockExpiryTime {
-			continue
-		}
-
-		n.FailedQueueAttempts = u.FailedQueueAttempts
-		n.LockExpiryTime = u.LockExpiryTime
+		n.LockExpiryTime = time.Time{}
 		n.Status = u.FinalStatus
+		if u.FinalStatus == notification.StatusUndelivered {
+			n.FailedQueueAttempts = n.FailedQueueAttempts + 1
+		}
 		f.entries[u.Identifier] = n
 	}
 
