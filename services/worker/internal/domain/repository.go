@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -27,7 +29,7 @@ var ErrAlreadyComplete = errors.New("repository: notification is already complet
 
 // Repository is an abstraction around the database.
 type Repository interface {
-	Acquire(ctx context.Context, identifier string, expiryTime time.Time) error
-	MarkSuccess(ctx context.Context, identifier string) error
-	MarkFailure(ctx context.Context, identifier string) error
+	Acquire(ctx context.Context, identifier uuid.UUID, expiryTime time.Time) error
+	MarkSuccess(ctx context.Context, identifier uuid.UUID) error
+	MarkFailure(ctx context.Context, identifier uuid.UUID) error
 }

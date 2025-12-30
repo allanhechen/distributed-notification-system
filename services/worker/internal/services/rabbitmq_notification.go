@@ -4,26 +4,28 @@ import (
 	"context"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
+	"github.com/google/uuid"
 )
 
 // RabbitMqNotification is a concrete implementation of the Message
 // interface for RabbitMQ messages and domain notifications.
 type RabbitMqNotification struct {
-	payload        domain.Notification
-	identifier     string
-	alreadyReplied bool
-	ackFn          func(ctx context.Context) error
-	nackFn         func(ctx context.Context, requeue bool) error
+	payload                notification.Notification
+	notificationIdentifier uuid.UUID
+	alreadyReplied         bool
+	ackFn                  func(ctx context.Context) error
+	nackFn                 func(ctx context.Context, requeue bool) error
 }
 
 // Payload retrieves the payload of this message.
-func (r *RabbitMqNotification) Payload() domain.Notification {
+func (r *RabbitMqNotification) Payload() notification.Notification {
 	return r.payload
 }
 
 // Identifier retrieves the identifier of this message.
-func (r *RabbitMqNotification) Identifier() string {
-	return r.identifier
+func (r *RabbitMqNotification) Identifier() uuid.UUID {
+	return r.notificationIdentifier
 }
 
 // Ack sends an ACK to RabbitMQ by calling the ackFn. Does not requeue.

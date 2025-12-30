@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
 	"github.com/google/uuid"
 )
 
@@ -16,21 +17,21 @@ const (
 )
 
 type FakeMessage struct {
-	identifier string
-	payload    domain.Notification
+	identifier uuid.UUID
+	payload    notification.Notification
 	Status     FakeRequestStatus
 }
 
 // GetFakeMessage creates a FakeMessage initialized with the provided notification, a new unique identifier, and StatusNone as its initial status.
-func GetFakeMessage(notification domain.Notification) *FakeMessage {
+func GetFakeMessage(n notification.Notification) *FakeMessage {
 	return &FakeMessage{
-		identifier: uuid.New().String(),
-		payload:    notification,
+		identifier: uuid.New(),
+		payload:    n,
 		Status:     StatusNone,
 	}
 }
 
-func (f *FakeMessage) Payload() domain.Notification {
+func (f *FakeMessage) Payload() notification.Notification {
 	return f.payload
 }
 
@@ -52,6 +53,6 @@ func (f *FakeMessage) Nack(_ context.Context, _ bool) error {
 	return nil
 }
 
-func (f *FakeMessage) Identifier() string {
+func (f *FakeMessage) Identifier() uuid.UUID {
 	return f.identifier
 }

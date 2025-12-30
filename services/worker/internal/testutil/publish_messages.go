@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
 	rabbitmqnotifications "github.com/allanhechen/distributed-notification-system/utils/rabbitmq_notifications"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -16,7 +16,7 @@ import (
 func PublishMessages(
 	ctx context.Context,
 	url string,
-	notifications []domain.Notification,
+	notifications []notification.Notification,
 	exchange rabbitmqnotifications.ExchangeName,
 	routingKey rabbitmqnotifications.RoutingKey,
 ) error {

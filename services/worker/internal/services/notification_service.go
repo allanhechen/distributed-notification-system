@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
+	"github.com/google/uuid"
 )
 
 // TODO: extend this with actual errors
@@ -32,7 +34,7 @@ type NotificationService interface {
 
 type ConcreteNotificationService struct {
 	db             domain.Repository
-	consumer       domain.Consumer[domain.Notification]
+	consumer       domain.Consumer[notification.Notification]
 	notifier       domain.Notifier
 	maxParallelism uint
 }
@@ -40,7 +42,7 @@ type ConcreteNotificationService struct {
 // GetConcreteNotificationService creates a NotificationService backed by a ConcreteNotificationService
 // using the provided repository, consumer, notifier, and worker pool size.
 // The maxParallelism parameter controls the number of worker goroutines that will process messages concurrently.
-func GetConcreteNotificationService(db domain.Repository, consumer domain.Consumer[domain.Notification], notifier domain.Notifier, maxParallelism uint) NotificationService {
+func GetConcreteNotificationService(db domain.Repository, consumer domain.Consumer[notification.Notification], notifier domain.Notifier, maxParallelism uint) NotificationService {
 	return &ConcreteNotificationService{
 		db:             db,
 		consumer:       consumer,
@@ -67,7 +69,7 @@ func (c *ConcreteNotificationService) HandleNotifications(ctx context.Context) e
 	return nil
 }
 
-func (c *ConcreteNotificationService) startWorker(ctx context.Context, jobs <-chan domain.Message[domain.Notification]) {
+func (c *ConcreteNotificationService) startWorker(ctx context.Context, jobs <-chan domain.Message[notification.Notification]) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -84,7 +86,7 @@ func (c *ConcreteNotificationService) startWorker(ctx context.Context, jobs <-ch
 	}
 }
 
-func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg domain.Message[domain.Notification]) {
+func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg domain.Message[notification.Notification]) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("notification service: worker recovered from panic", "panic", r)
@@ -110,7 +112,7 @@ func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg do
 		errCtx, errCancel := context.WithTimeout(context.WithoutCancel(jobCtx), domain.ErrorProcessingTime)
 		defer errCancel()
 		msg.Nack(errCtx, requeue)
-		c.db.MarkFailure(errCtx, msg.Identifier())
+		c.db.MarkFailure(errCtx, identifier)
 		return
 	}
 
@@ -118,7 +120,7 @@ func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg do
 	c.updateStatusSuccess(jobCtx, identifier, msg)
 }
 
-func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context, identifier string, msg domain.Message[domain.Notification]) {
+func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context, identifier uuid.UUID, msg domain.Message[notification.Notification]) {
 	updateCtx, updateCancel := context.WithTimeout(context.WithoutCancel(jobCtx), domain.SuccessProcessingTime)
 	defer updateCancel()
 
@@ -140,7 +142,7 @@ func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context
 	}
 }
 
-func (c *ConcreteNotificationService) acquireNotificationLock(ctx context.Context, identifier string, msg domain.Message[domain.Notification]) bool {
+func (c *ConcreteNotificationService) acquireNotificationLock(ctx context.Context, identifier uuid.UUID, msg domain.Message[notification.Notification]) bool {
 	now := time.Now().UTC()
 	expiryTime := now.Add(domain.ProcessingLockTime)
 	err := c.db.Acquire(ctx, identifier, expiryTime)

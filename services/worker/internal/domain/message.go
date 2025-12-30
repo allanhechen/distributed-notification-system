@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"errors"
+
+	"github.com/google/uuid"
 )
 
 // ErrAlreadyReplied denotes that a particular message has been replied
@@ -15,5 +17,5 @@ type Message[T any] interface {
 	Payload() T
 	Ack(ctx context.Context) error
 	Nack(ctx context.Context, requeue bool) error
-	Identifier() string
+	Identifier() uuid.UUID
 }

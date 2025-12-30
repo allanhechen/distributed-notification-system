@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/testutil"
 	"github.com/allanhechen/distributed-notification-system/utils/notification"
 	rabbitmqnotifications "github.com/allanhechen/distributed-notification-system/utils/rabbitmq_notifications"
@@ -28,21 +27,21 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	// insert messages
-	notifications := []domain.Notification{
+	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       "stop",
+			Identifier:       uuid.Nil,
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -53,13 +52,13 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
-	result := make([]domain.Notification, 0, 3)
+	result := make([]notification.Notification, 0, 3)
 	for msg := range out {
 		payload := msg.Payload()
 		err = msg.Ack(ctx)
 		assert.NoError(t, err)
 		result = append(result, payload)
-		if payload.Identifier == "stop" {
+		if payload.Identifier == uuid.Nil {
 			break
 		}
 	}
@@ -106,21 +105,21 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 	require.NoError(t, err)
 
 	// insert messages
-	notifications := []domain.Notification{
+	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       "stop",
+			Identifier:       uuid.Nil,
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications[:1], rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -132,7 +131,7 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 	assert.NoError(t, err)
 
 	// receive first message
-	result := make([]domain.Notification, 0, 3)
+	result := make([]notification.Notification, 0, 3)
 	msg := <-out
 	payload := msg.Payload()
 	err = msg.Ack(ctx)
@@ -155,7 +154,7 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 		err = msg.Ack(ctx)
 		assert.NoError(t, err)
 		result = append(result, payload)
-		if payload.Identifier == "stop" {
+		if payload.Identifier == uuid.Nil {
 			break
 		}
 	}
@@ -176,11 +175,11 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 	require.NoError(t, err)
 
 	// insert messages
-	notifications := []domain.Notification{
+	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -218,11 +217,11 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 	require.NoError(t, err)
 
 	// insert messages
-	notifications := []domain.Notification{
+	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -260,11 +259,11 @@ func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 	require.NoError(t, err)
 
 	// insert messages
-	notifications := []domain.Notification{
+	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
