@@ -28,17 +28,17 @@ func GetFakeMqService() *FakeMqService {
 // A notification is "failed" to be sent if it exists within the failed
 // set contained within memory.
 func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notification, responses chan<- domain.StatusUpdate) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	resp := domain.StatusUpdate{
 		Identifier: n.Identifier,
 	}
+	f.mu.Lock()
 	_, ok := f.failIdentifiers[n.Identifier]
 	if !ok {
 		resp.FinalStatus = notification.StatusQueued
 	} else {
 		resp.FinalStatus = notification.StatusUndelivered
 	}
+	f.mu.Unlock()
 
 	responses <- resp
 	return nil
