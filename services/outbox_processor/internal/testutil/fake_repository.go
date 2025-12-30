@@ -12,17 +12,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// FakeRepository is an in-memory implementation of the repository.
 type FakeRepository struct {
 	mu      sync.Mutex
 	entries map[uuid.UUID]notification.Notification
 }
 
-func GetFakeRepository() domain.Repository {
+// GetFakeRepository returns an instance of the fake repository.
+func GetFakeRepository() *FakeRepository {
 	return &FakeRepository{
 		entries: make(map[uuid.UUID]notification.Notification),
 	}
 }
 
+// GetUnprocessedNotifications returns all the notifications eligible to
+// be queued from memory.
 func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count uint) ([]notification.Notification, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -46,6 +50,8 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count ui
 	return r, nil
 }
 
+// UpdateNotificationStatuses updates the notifications to the provided
+// statuses.
 func (f *FakeRepository) UpdateNotificationStatuses(_ context.Context, updates []domain.StatusUpdate) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
