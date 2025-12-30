@@ -2,9 +2,14 @@ package domain
 
 import (
 	"context"
+	"errors"
 
 	"github.com/allanhechen/distributed-notification-system/utils/notification"
 )
+
+// ErrNonExistent is returned when a specified notification does not exist
+// in the database.
+var ErrNonExistent = errors.New("repository: notification does not exist")
 
 // Repository handles communication with the database.
 type Repository interface {
