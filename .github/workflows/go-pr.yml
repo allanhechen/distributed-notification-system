@@ -39,6 +39,11 @@ jobs:
                   make fmt
                   git diff --exit-code
 
+            - name: Verify installed packages
+              run: |
+                  make tidy
+                  git diff --exit-code
+
             - name: Add Go bin to PATH
               run: echo "$HOME/go/bin" >> $GITHUB_PATH
 
