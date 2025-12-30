@@ -17,7 +17,7 @@ const (
 )
 
 type FakeMessage struct {
-	identifier string
+	identifier uuid.UUID
 	payload    notification.Notification
 	Status     FakeRequestStatus
 }
@@ -25,7 +25,7 @@ type FakeMessage struct {
 // GetFakeMessage creates a FakeMessage initialized with the provided notification, a new unique identifier, and StatusNone as its initial status.
 func GetFakeMessage(notification notification.Notification) *FakeMessage {
 	return &FakeMessage{
-		identifier: uuid.New().String(),
+		identifier: uuid.New(),
 		payload:    notification,
 		Status:     StatusNone,
 	}
@@ -53,6 +53,6 @@ func (f *FakeMessage) Nack(_ context.Context, _ bool) error {
 	return nil
 }
 
-func (f *FakeMessage) Identifier() string {
+func (f *FakeMessage) Identifier() uuid.UUID {
 	return f.identifier
 }

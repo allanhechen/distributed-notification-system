@@ -10,6 +10,7 @@ import (
 
 	"github.com/allanhechen/distributed-notification-system/services/worker/internal/domain"
 	"github.com/allanhechen/distributed-notification-system/utils/notification"
+	"github.com/google/uuid"
 )
 
 // TODO: extend this with actual errors
@@ -119,7 +120,7 @@ func (c *ConcreteNotificationService) processMessage(ctx context.Context, msg do
 	c.updateStatusSuccess(jobCtx, identifier, msg)
 }
 
-func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context, identifier string, msg domain.Message[notification.Notification]) {
+func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context, identifier uuid.UUID, msg domain.Message[notification.Notification]) {
 	updateCtx, updateCancel := context.WithTimeout(context.WithoutCancel(jobCtx), domain.SuccessProcessingTime)
 	defer updateCancel()
 
@@ -141,7 +142,7 @@ func (c *ConcreteNotificationService) updateStatusSuccess(jobCtx context.Context
 	}
 }
 
-func (c *ConcreteNotificationService) acquireNotificationLock(ctx context.Context, identifier string, msg domain.Message[notification.Notification]) bool {
+func (c *ConcreteNotificationService) acquireNotificationLock(ctx context.Context, identifier uuid.UUID, msg domain.Message[notification.Notification]) bool {
 	now := time.Now().UTC()
 	expiryTime := now.Add(domain.ProcessingLockTime)
 	err := c.db.Acquire(ctx, identifier, expiryTime)

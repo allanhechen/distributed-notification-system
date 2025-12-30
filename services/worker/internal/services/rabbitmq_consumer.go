@@ -160,8 +160,8 @@ func (r *RabbitMqConsumer) handleIteration(ctx context.Context, outputCh chan do
 			}
 
 			notification := RabbitMqNotification{
-				payload:    payload,
-				identifier: d.MessageId,
+				payload:                payload,
+				notificationIdentifier: payload.Identifier,
 				ackFn: func(ctx context.Context) error {
 					return d.Ack(false)
 				},
