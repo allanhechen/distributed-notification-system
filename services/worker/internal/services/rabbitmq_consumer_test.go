@@ -29,19 +29,19 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 	// insert messages
 	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       "stop",
+			Identifier:       uuid.Nil,
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -58,7 +58,7 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 		err = msg.Ack(ctx)
 		assert.NoError(t, err)
 		result = append(result, payload)
-		if payload.Identifier == "stop" {
+		if payload.Identifier == uuid.Nil {
 			break
 		}
 	}
@@ -107,19 +107,19 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 	// insert messages
 	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 		{
-			Identifier:       "stop",
+			Identifier:       uuid.Nil,
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications[:1], rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -154,7 +154,7 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 		err = msg.Ack(ctx)
 		assert.NoError(t, err)
 		result = append(result, payload)
-		if payload.Identifier == "stop" {
+		if payload.Identifier == uuid.Nil {
 			break
 		}
 	}
@@ -177,9 +177,9 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 	// insert messages
 	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -219,9 +219,9 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 	// insert messages
 	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
@@ -261,9 +261,9 @@ func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 	// insert messages
 	notifications := []notification.Notification{
 		{
-			Identifier:       uuid.NewString(),
+			Identifier:       uuid.New(),
 			NotificationType: notification.IosDeviceType,
-			DeviceIdentifier: uuid.NewString(),
+			DeviceIdentifier: uuid.New(),
 		},
 	}
 	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
