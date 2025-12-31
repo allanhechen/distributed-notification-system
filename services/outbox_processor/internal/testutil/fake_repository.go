@@ -15,15 +15,15 @@ import (
 // FakeRepository is an in-memory implementation of the repository.
 type FakeRepository struct {
 	mu              sync.Mutex
-	entries         map[uuid.UUID]notification.Notification
-	queueRetryLimit int
+	Entries         map[uuid.UUID]notification.Notification
+	QueueRetryLimit int
 }
 
 // GetFakeRepository returns an instance of the fake repository.
 func GetFakeRepository() *FakeRepository {
 	return &FakeRepository{
-		entries:         make(map[uuid.UUID]notification.Notification),
-		queueRetryLimit: notification.DefaultQueueRetryLimit,
+		Entries:         make(map[uuid.UUID]notification.Notification),
+		QueueRetryLimit: notification.DefaultQueueRetryLimit,
 	}
 }
 
@@ -38,7 +38,7 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count ui
 	now := time.Now().UTC()
 
 	// loop through entries until full
-	for k, v := range f.entries {
+	for k, v := range f.Entries {
 		if len(r) == int(count) {
 			break
 		}
@@ -46,11 +46,11 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count ui
 		// fetch undelivered notifications with queue attempts remaining
 		if v.Status == notification.StatusUndelivered &&
 			now.After(v.LockExpiryTime) &&
-			v.FailedQueueAttempts < f.queueRetryLimit {
+			v.FailedQueueAttempts < f.QueueRetryLimit {
 
 			v.LockExpiryTime = now.Add(domain.MessageLockDuration)
 			r = append(r, v)
-			f.entries[k] = v
+			f.Entries[k] = v
 		}
 	}
 
@@ -66,7 +66,7 @@ func (f *FakeRepository) UpdateNotificationStatuses(_ context.Context, updates [
 	var errs []error
 
 	for _, u := range updates {
-		n, ok := f.entries[u.Identifier]
+		n, ok := f.Entries[u.Identifier]
 		if !ok {
 			errs = append(errs, fmt.Errorf("notification %s: %w", u.Identifier, domain.ErrNonExistent))
 			continue
@@ -82,7 +82,7 @@ func (f *FakeRepository) UpdateNotificationStatuses(_ context.Context, updates [
 		if u.FinalStatus == notification.StatusUndelivered {
 			n.FailedQueueAttempts = n.FailedQueueAttempts + 1
 		}
-		f.entries[u.Identifier] = n
+		f.Entries[u.Identifier] = n
 	}
 
 	return errors.Join(errs...)
