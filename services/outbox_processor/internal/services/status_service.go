@@ -45,9 +45,11 @@ func (c *ConcreteStatusService) Listen(updates <-chan domain.StatusUpdate) {
 			if !ok {
 				slog.Info("status service: channel closed, clearing buffers")
 				if len(c.buf) > 0 {
+					old := c.buf
+					c.buf = nil
 					c.sem <- struct{}{}
 					wg.Go(func() {
-						c.processBatch(c.buf)
+						c.processBatch(old)
 					})
 				}
 				wg.Wait()
