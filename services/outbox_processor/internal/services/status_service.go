@@ -75,10 +75,11 @@ func (c *ConcreteStatusService) Listen(updates <-chan domain.StatusUpdate) {
 		}
 	}
 }
-func (c *ConcreteStatusService) processBatch(buf []domain.StatusUpdate) {
+func (c *ConcreteStatusService) processBatch(buf []domain.StatusUpdate) error {
 	if len(buf) == 0 {
 		slog.Info("status service: no updates to be sent to the repository")
-		return
+		<-c.sem
+		return nil
 	}
 	slog.Info("status service: updating repository statuses", "entries", len(buf))
 	jobCtx, cancel := context.WithTimeout(context.Background(), c.jobTimeout)
@@ -92,4 +93,5 @@ func (c *ConcreteStatusService) processBatch(buf []domain.StatusUpdate) {
 		}
 	}
 	<-c.sem
+	return err
 }
