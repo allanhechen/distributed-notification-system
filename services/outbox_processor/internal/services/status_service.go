@@ -78,9 +78,10 @@ func (c *ConcreteStatusService) Listen(updates <-chan domain.StatusUpdate) {
 	}
 }
 func (c *ConcreteStatusService) processBatch(buf []domain.StatusUpdate) error {
+	defer func() { <-c.sem }()
 	if len(buf) == 0 {
 		slog.Info("status service: no updates to be sent to the repository")
-		<-c.sem
+
 		return nil
 	}
 	slog.Info("status service: updating repository statuses", "entries", len(buf))
@@ -94,6 +95,6 @@ func (c *ConcreteStatusService) processBatch(buf []domain.StatusUpdate) error {
 			slog.Warn("status service: failed to mark notifications", "error", err)
 		}
 	}
-	<-c.sem
+
 	return err
 }
