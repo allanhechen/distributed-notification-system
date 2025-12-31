@@ -152,3 +152,46 @@ func TestProcessBatch_ChannelClose(t *testing.T) {
 	expected.Status = notification.StatusQueued
 	assert.Equal(t, expected, r.Entries[expected.Identifier])
 }
+
+func TestProcessBatch_Workers(t *testing.T) {
+	r := testutil.GetFakeRepository()
+	ss := ConcreteStatusService{
+		repo:          r,
+		sem:           make(chan struct{}, 5),
+		buf:           make([]domain.StatusUpdate, 0, 1),
+		maxLen:        1,
+		tickerTimeout: 250 * time.Millisecond,
+		jobTimeout:    1 * time.Second,
+	}
+	notifications := []notification.Notification{
+		notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{}),
+		notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{}),
+		notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{}),
+		notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{}),
+		notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{}),
+		notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{}),
+	}
+	var statusUpdates []domain.StatusUpdate
+	for _, n := range notifications {
+		r.Entries[n.Identifier] = n
+		statusUpdates = append(statusUpdates, domain.StatusUpdate{
+			Identifier:  n.Identifier,
+			FinalStatus: notification.StatusQueued,
+		})
+		n.Status = notification.StatusQueued
+	}
+
+	// buffer messages initially
+	updates := make(chan domain.StatusUpdate, 6)
+	for _, s := range statusUpdates {
+		updates <- s
+	}
+	close(updates)
+	ss.Listen(updates)
+
+	for idx := range notifications {
+		expected := notifications[idx]
+		expected.Status = notification.StatusQueued
+		assert.Equal(t, expected, r.Entries[expected.Identifier])
+	}
+}
