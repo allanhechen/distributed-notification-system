@@ -49,7 +49,7 @@ func TestNotificationService_UpdateSuccessExisting(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -67,7 +67,7 @@ func TestNotificationService_UpdateSuccessNonExistent(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 
@@ -82,7 +82,7 @@ func TestNotificationService_UpdateSuccessBadStatus(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -102,7 +102,7 @@ func TestNotificationService_AcquireExisting(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -121,7 +121,7 @@ func TestNotificationService_AcquireNonExistent(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 
@@ -137,7 +137,7 @@ func TestNotificationService_AcquireProcessing(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -157,7 +157,7 @@ func TestNotificationService_AcquireComplete(t *testing.T) {
 	fakes := GetFakeConcreteNotificationService()
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -177,7 +177,7 @@ func TestNotificationService_ProcessMessageSuccess(t *testing.T) {
 	expiryTime := now.Add(time.Hour)
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -197,7 +197,7 @@ func TestNotificationService_ProcessMessageNoAcquire(t *testing.T) {
 	expiryTime := now.Add(time.Hour)
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -216,7 +216,7 @@ func TestNotificationService_ProcessMessageTimeout(t *testing.T) {
 	expiryTime := now.Add(time.Hour)
 	ns := fakes.ns
 
-	fakeNotification := testutil.GetFakeNotification()
+	fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 	fakeMessage := testutil.GetFakeMessage(fakeNotification)
 	identifier := fakeMessage.Identifier()
 	fakes.db.Db[identifier] = testutil.FakeRepositoryEntry{
@@ -242,7 +242,7 @@ func TestNotificationService_HandleNotifications(t *testing.T) {
 	fakeMessages := make([]*testutil.FakeMessage, 0, 10)
 
 	for range 10 {
-		fakeNotification := testutil.GetFakeNotification()
+		fakeNotification := notification.GetFakeNotification(notification.EmailDeviceType, notification.StatusUndelivered, 0, time.Time{})
 		fakeMessage := testutil.GetFakeMessage(fakeNotification)
 		identifier := fakeMessage.Identifier()
 
