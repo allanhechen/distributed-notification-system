@@ -11,7 +11,8 @@ import (
 type MqService interface {
 	// SendNotification sends a notification to the implementor's message queue.
 	// It sends updated statuses to the given channel.
+	// It sends a message to the returned channel when done
 	//
 	// Returned errors exist only for logging purposes.
-	SendNotification(ctx context.Context, n notification.Notification, responses chan<- StatusUpdate) error
+	SendNotification(ctx context.Context, n notification.Notification, responses chan<- StatusUpdate) (done <-chan struct{}, err error)
 }
