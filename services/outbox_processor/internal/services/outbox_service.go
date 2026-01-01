@@ -9,6 +9,8 @@ import (
 	"github.com/allanhechen/distributed-notification-system/services/outbox_processor/internal/domain"
 )
 
+// ConcreteOutboxService is a concrete implementation of the OutboxService
+// interface.
 type ConcreteOutboxService struct {
 	repo      domain.Repository
 	ss        domain.StatusService
@@ -17,6 +19,7 @@ type ConcreteOutboxService struct {
 	interval  time.Duration
 }
 
+// GetConcreteOutboxService returns an instance of ConcreteOutboxService.
 func GetConcreteOutboxService(
 	repo domain.Repository,
 	ss domain.StatusService,
@@ -33,6 +36,9 @@ func GetConcreteOutboxService(
 	}
 }
 
+// HandleMessages handles new notifications retrieved by the repository.
+// If the handled batch size is max capacity, it runs another iteration
+// immediately.
 func (c *ConcreteOutboxService) HandleMessages(ctx context.Context) error {
 	var wg sync.WaitGroup
 	batchSize := c.batchSize
