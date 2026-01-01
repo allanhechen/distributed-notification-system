@@ -1,6 +1,9 @@
 package rabbitmqnotifications
 
-import amqp "github.com/rabbitmq/amqp091-go"
+import (
+	"github.com/allanhechen/distributed-notification-system/utils/notification"
+	amqp "github.com/rabbitmq/amqp091-go"
+)
 
 type amqpBinding struct {
 	name     QueueName
@@ -26,6 +29,13 @@ const (
 	// EmailNotificationKey sends messages to the email device queue.
 	EmailNotificationKey RoutingKey = "notifications.email"
 )
+
+var DeviceTypeToRoutingKey = map[notification.DeviceType]RoutingKey{
+	notification.IosDeviceType:     AppleNotificationKey,
+	notification.AndroidDeviceType: AndroidNotificationKey,
+	notification.EmailDeviceType:   EmailNotificationKey,
+	notification.TestDeviceType:    TestNotificationKey,
+}
 
 var bindings = []amqpBinding{
 	{
