@@ -29,7 +29,7 @@ func GetFakeRepository() *FakeRepository {
 
 // GetUnprocessedNotifications returns all the notifications eligible to
 // be queued from memory.
-func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count uint) ([]notification.Notification, error) {
+func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count int) ([]notification.Notification, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -39,7 +39,7 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count ui
 
 	// loop through entries until full
 	for k, v := range f.Entries {
-		if len(r) == int(count) {
+		if len(r) == count {
 			break
 		}
 

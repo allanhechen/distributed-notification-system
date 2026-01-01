@@ -81,7 +81,7 @@ func TestProcessBatch_TickerActivation(t *testing.T) {
 		sem:           make(chan struct{}, 1),
 		buf:           make([]domain.StatusUpdate, 0, 1),
 		maxLen:        1,
-		tickerTimeout: 250 * time.Millisecond,
+		tickerTimeout: 10 * time.Millisecond,
 		jobTimeout:    1 * time.Second,
 	}
 	notifications := []notification.Notification{
@@ -102,14 +102,14 @@ func TestProcessBatch_TickerActivation(t *testing.T) {
 
 	// send first update
 	updates <- statusUpdates[0]
-	<-time.After(500 * time.Millisecond)
+	<-time.After(50 * time.Millisecond)
 	expected := notifications[0]
 	expected.Status = notification.StatusQueued
 	assert.Equal(t, expected, r.Entries[expected.Identifier])
 
 	// send second update
 	updates <- statusUpdates[1]
-	<-time.After(500 * time.Millisecond)
+	<-time.After(50 * time.Millisecond)
 	expected = notifications[1]
 	expected.Status = notification.StatusQueued
 	assert.Equal(t, expected, r.Entries[expected.Identifier])
