@@ -69,8 +69,6 @@ func TestOutboxService_Failure(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 	cancel()
 	<-done
-	<-time.After(100 * time.Millisecond)
-	cancel()
 
 	assert.Equal(t, expected, repo.Entries[n.Identifier])
 }
