@@ -20,7 +20,7 @@ const MessageLockDuration = time.Duration(5 * time.Second)
 type Repository interface {
 	// GetUnprocessedNotifications returns messages in unprocessed or locked
 	// but expired status
-	GetUnprocessedNotifications(ctx context.Context, count uint) ([]notification.Notification, error)
+	GetUnprocessedNotifications(ctx context.Context, count int) ([]notification.Notification, error)
 	// UpdateNotificationStatuses updates the notifications specified within
 	// updates to the provided statuses.
 	UpdateNotificationStatuses(ctx context.Context, updates []StatusUpdate) error
