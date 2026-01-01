@@ -39,7 +39,7 @@ func (f *FakeRepository) GetUnprocessedNotifications(_ context.Context, count in
 
 	// loop through entries until full
 	for k, v := range f.Entries {
-		if len(r) == int(count) {
+		if len(r) == count {
 			break
 		}
 

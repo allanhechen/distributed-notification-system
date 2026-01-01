@@ -31,10 +31,15 @@ func TestOutboxService_Integration(t *testing.T) {
 		expectedMap[n.Identifier] = expected
 	}
 
-	go os.HandleMessages(ctx)
+	done := make(chan struct{})
+	go func() {
+		os.HandleMessages(ctx)
+		close(done)
+	}()
 
 	<-time.After(100 * time.Millisecond)
 	cancel()
+	<-done
 
 	for _, n := range notifications {
 		assert.Equal(t, expectedMap[n.Identifier], repo.Entries[n.Identifier])
@@ -53,10 +58,17 @@ func TestOutboxService_Failure(t *testing.T) {
 	mqs.AddFailedIdentifier(n.Identifier)
 
 	expected := n
-	expected.FailedQueueAttempts = 3
+	expected.FailedQueueAttempts = notification.DefaultQueueRetryLimit
 
-	go os.HandleMessages(ctx)
+	done := make(chan struct{})
+	go func() {
+		os.HandleMessages(ctx)
+		close(done)
+	}()
 
+	<-time.After(100 * time.Millisecond)
+	cancel()
+	<-done
 	<-time.After(100 * time.Millisecond)
 	cancel()
 
