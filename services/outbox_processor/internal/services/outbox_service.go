@@ -17,7 +17,7 @@ type ConcreteOutboxService struct {
 	interval  time.Duration
 }
 
-func GetconcreteOutboxService(
+func GetConcreteOutboxService(
 	repo domain.Repository,
 	ss domain.StatusService,
 	mqs domain.MqService,
