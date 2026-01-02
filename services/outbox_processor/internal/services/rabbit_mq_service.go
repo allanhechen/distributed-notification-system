@@ -72,10 +72,10 @@ func GetRabbitMqService(
 // the notification's given timeout.
 func (r *RabbitMqService) SendNotification(n notification.Notification, responses chan<- domain.StatusUpdate) (<-chan struct{}, error) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	select {
 	case <-r.cancelled:
-		r.mu.Unlock()
 		responses <- domain.StatusUpdate{
 			Identifier:  n.Identifier,
 			FinalStatus: notification.StatusUndelivered,
@@ -92,7 +92,6 @@ func (r *RabbitMqService) SendNotification(n notification.Notification, response
 		success: make(chan bool, 1),
 		ctx:     ctx,
 	}
-	r.mu.Unlock()
 	r.jobs <- req
 
 	go func() {
@@ -194,7 +193,7 @@ func (r *RabbitMqService) handleNotifications(conn *amqp.Connection, connCloseCh
 	var chanCloseCh chan *amqp.Error
 
 	for {
-		chanCloseCh = make(chan *amqp.Error)
+		chanCloseCh = make(chan *amqp.Error, 1)
 		channel, err = conn.Channel()
 		if err != nil {
 			currentBackoff = min(currentBackoff*2, r.maxBackoff)
