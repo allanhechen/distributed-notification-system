@@ -27,7 +27,6 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create container: %v", err)
 	}
 	testContainer = c
-	defer testContainer.Close(ctx)
 
 	if err := c.DeclareEntities(ctx); err != nil {
 		c.Close(ctx)
@@ -35,6 +34,7 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
+	testContainer.Close(ctx)
 	os.Exit(code)
 }
 
