@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -15,16 +17,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testContainer *sharedTestutil.RabbitMqContainer
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
+	if err != nil {
+		log.Fatalf("Failed to create container: %v", err)
+	}
+	testContainer = c
+	defer testContainer.Close(ctx)
+
+	if err := c.DeclareEntities(ctx); err != nil {
+		c.Close(ctx)
+		log.Fatalf("Failed to declare entities: %v", err)
+	}
+
+	code := m.Run()
+	os.Exit(code)
+}
+
 func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	// set up container
-	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
-	require.NoError(t, err)
-	defer c.Close(context.Background())
-
-	err = c.DeclareEntities(ctx)
-	require.NoError(t, err)
 
 	// insert messages
 	notifications := []notification.Notification{
@@ -44,11 +59,11 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 			DeviceIdentifier: uuid.New(),
 		},
 	}
-	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
+	err := testutil.PublishMessages(ctx, testContainer.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
 	require.NoError(t, err)
 
 	// listen to messages
-	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	consumer := NewRabbitMqConsumer(testContainer.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
@@ -70,16 +85,8 @@ func TestRabbitMqConsumer_ReceiveMessages(t *testing.T) {
 func TestRabbitMqConsumer_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// set up container
-	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
-	require.NoError(t, err)
-	defer c.Close(context.Background())
-
-	err = c.DeclareEntities(ctx)
-	require.NoError(t, err)
-
 	// listen to messages
-	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	consumer := NewRabbitMqConsumer(testContainer.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
@@ -95,14 +102,6 @@ func TestRabbitMqConsumer_ContextCancellation(t *testing.T) {
 
 func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	// set up container
-	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
-	require.NoError(t, err)
-	defer c.Close(context.Background())
-
-	err = c.DeclareEntities(ctx)
-	require.NoError(t, err)
 
 	// insert messages
 	notifications := []notification.Notification{
@@ -122,11 +121,11 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 			DeviceIdentifier: uuid.New(),
 		},
 	}
-	err = testutil.PublishMessages(ctx, c.ConnString, notifications[:1], rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
+	err := testutil.PublishMessages(ctx, testContainer.ConnString, notifications[:1], rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
 	require.NoError(t, err)
 
 	// listen to messages
-	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	consumer := NewRabbitMqConsumer(testContainer.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
@@ -139,13 +138,13 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 	result = append(result, payload)
 
 	// simulate network dropout
-	err = c.Disconnect()
+	err = testContainer.Disconnect()
 	require.NoError(t, err)
-	err = c.Reconnect()
+	err = testContainer.Reconnect()
 	require.NoError(t, err)
 
 	// publish additional messages
-	err = testutil.PublishMessages(ctx, c.ConnString, notifications[1:], rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
+	err = testutil.PublishMessages(ctx, testContainer.ConnString, notifications[1:], rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
 	require.NoError(t, err)
 
 	// listen to all remaining messages
@@ -166,14 +165,6 @@ func TestRabbitMqConsumer_Reconnect(t *testing.T) {
 func TestRabbitMqConsumer_Ack(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// set up container
-	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
-	require.NoError(t, err)
-	defer c.Close(context.Background())
-
-	err = c.DeclareEntities(ctx)
-	require.NoError(t, err)
-
 	// insert messages
 	notifications := []notification.Notification{
 		{
@@ -182,11 +173,11 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 			DeviceIdentifier: uuid.New(),
 		},
 	}
-	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
+	err := testutil.PublishMessages(ctx, testContainer.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
 	require.NoError(t, err)
 
 	// listen to messages
-	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	consumer := NewRabbitMqConsumer(testContainer.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
@@ -199,7 +190,7 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 	select {
 	case msg := <-out:
 		assert.Fail(t, "expected channel to be empty, received %v", msg)
-	case <-time.After(2 * time.Second):
+	case <-time.After(1 * time.Second):
 	}
 
 	cancel()
@@ -207,14 +198,6 @@ func TestRabbitMqConsumer_Ack(t *testing.T) {
 
 func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	// set up container
-	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
-	require.NoError(t, err)
-	defer c.Close(context.Background())
-
-	err = c.DeclareEntities(ctx)
-	require.NoError(t, err)
 
 	// insert messages
 	notifications := []notification.Notification{
@@ -224,11 +207,11 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 			DeviceIdentifier: uuid.New(),
 		},
 	}
-	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
+	err := testutil.PublishMessages(ctx, testContainer.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
 	require.NoError(t, err)
 
 	// listen to messages
-	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	consumer := NewRabbitMqConsumer(testContainer.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
@@ -241,7 +224,7 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 	select {
 	case msg := <-out:
 		assert.Fail(t, "expected channel to be empty, received %v", msg)
-	case <-time.After(2 * time.Second):
+	case <-time.After(1 * time.Second):
 	}
 
 	cancel()
@@ -249,14 +232,6 @@ func TestRabbitMqConsumer_NackNoRequeue(t *testing.T) {
 
 func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	// set up container
-	c, err := sharedTestutil.GetRabbitMqContainer(ctx)
-	require.NoError(t, err)
-	defer c.Close(context.Background())
-
-	err = c.DeclareEntities(ctx)
-	require.NoError(t, err)
 
 	// insert messages
 	notifications := []notification.Notification{
@@ -266,11 +241,11 @@ func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 			DeviceIdentifier: uuid.New(),
 		},
 	}
-	err = testutil.PublishMessages(ctx, c.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
+	err := testutil.PublishMessages(ctx, testContainer.ConnString, notifications, rabbitmqnotifications.NotificationExchange, rabbitmqnotifications.TestNotificationKey)
 	require.NoError(t, err)
 
 	// listen to messages
-	consumer := NewRabbitMqConsumer(c.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
+	consumer := NewRabbitMqConsumer(testContainer.ConnString, rabbitmqnotifications.TestNotificationQueue, 30, 30, 1)
 	out, err := consumer.Consume(ctx)
 	assert.NoError(t, err)
 
@@ -283,7 +258,7 @@ func TestRabbitMqConsumer_NackRequeue(t *testing.T) {
 	select {
 	case msg := <-out:
 		assert.Equal(t, notifications[0].Identifier, msg.Payload().Identifier)
-	case <-time.After(2 * time.Second):
+	case <-time.After(1 * time.Second):
 		assert.Fail(t, "expected channel to receive the same message, received nothing")
 	}
 
