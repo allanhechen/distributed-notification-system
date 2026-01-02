@@ -36,6 +36,7 @@ const (
 	IosDeviceType     DeviceType = 0
 	AndroidDeviceType DeviceType = 1
 	EmailDeviceType   DeviceType = 2
+	TestDeviceType    DeviceType = 3
 )
 
 // TODO: update this type when the database schema is merged

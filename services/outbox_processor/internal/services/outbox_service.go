@@ -40,7 +40,8 @@ func GetConcreteOutboxService(
 // If the handled batch size is max capacity, it runs another iteration
 // immediately.
 func (c *ConcreteOutboxService) HandleMessages(ctx context.Context) error {
-	var wg sync.WaitGroup
+	var listenerWg sync.WaitGroup
+	var updateWg sync.WaitGroup
 	batchSize := c.batchSize
 	updates := make(chan domain.StatusUpdate, 2*batchSize) // closed in ctx.Done()
 	iterate := make(chan struct{}, 1)
@@ -48,7 +49,7 @@ func (c *ConcreteOutboxService) HandleMessages(ctx context.Context) error {
 	ticker := time.NewTicker(c.interval)
 	defer ticker.Stop()
 
-	wg.Go(func() {
+	listenerWg.Go(func() {
 		c.ss.Listen(updates)
 	})
 
@@ -56,8 +57,9 @@ func (c *ConcreteOutboxService) HandleMessages(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			slog.Info("outbox service: context closed, waiting for children and exiting gracefully")
+			updateWg.Wait()
 			close(updates)
-			wg.Wait()
+			listenerWg.Wait()
 			return ctx.Err()
 		case <-ticker.C:
 			select {
@@ -74,10 +76,14 @@ func (c *ConcreteOutboxService) HandleMessages(ctx context.Context) error {
 				continue
 			}
 			for _, n := range batch {
-				err := c.mqs.SendNotification(ctx, n, updates)
-				if err != nil {
-					slog.Error("outbox service: message queue service failed to send notification", "error", err, "notification", n)
-				}
+				updateWg.Go(func() {
+					done, err := c.mqs.SendNotification(n, updates)
+					if err != nil {
+						slog.Error("outbox service: message queue service failed to send notification", "error", err, "notification", n)
+						return
+					}
+					<-done
+				})
 			}
 
 			if len(batch) == batchSize {

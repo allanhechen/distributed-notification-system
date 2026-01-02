@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"context"
 	"sync"
 
 	"github.com/allanhechen/distributed-notification-system/services/outbox_processor/internal/domain"
@@ -27,7 +26,7 @@ func GetFakeMqService() *FakeMqService {
 //
 // A notification is "failed" to be sent if it exists within the failed
 // set contained within memory.
-func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notification, responses chan<- domain.StatusUpdate) error {
+func (f *FakeMqService) SendNotification(n notification.Notification, responses chan<- domain.StatusUpdate) (<-chan struct{}, error) {
 	resp := domain.StatusUpdate{
 		Identifier: n.Identifier,
 	}
@@ -41,8 +40,17 @@ func (f *FakeMqService) SendNotification(_ context.Context, n notification.Notif
 	f.mu.Unlock()
 
 	responses <- resp
-	return nil
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+
+	return done, nil
 }
+
+func (f *FakeMqService) Start() {}
+func (f *FakeMqService) Stop()  {}
 
 // AddFailedIdentifier adds additional notifications that will fail to
 // deliver.
