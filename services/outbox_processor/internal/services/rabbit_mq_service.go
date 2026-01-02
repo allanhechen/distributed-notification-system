@@ -53,6 +53,7 @@ func GetRabbitMqService(
 	numWorkers int,
 	jobQueueCount int,
 	backoff time.Duration,
+	maxBackoff time.Duration,
 	maxAttempts int,
 ) domain.MqService {
 	return &RabbitMqService{
@@ -61,6 +62,7 @@ func GetRabbitMqService(
 		cancelled:   make(chan struct{}),
 		jobs:        make(chan request, jobQueueCount),
 		backoff:     backoff,
+		maxBackoff:  maxBackoff,
 		maxAttempts: maxAttempts,
 	}
 }
@@ -70,10 +72,10 @@ func GetRabbitMqService(
 // the notification's given timeout.
 func (r *RabbitMqService) SendNotification(n notification.Notification, responses chan<- domain.StatusUpdate) (<-chan struct{}, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	select {
 	case <-r.cancelled:
+		r.mu.Unlock()
 		responses <- domain.StatusUpdate{
 			Identifier:  n.Identifier,
 			FinalStatus: notification.StatusUndelivered,
@@ -82,7 +84,7 @@ func (r *RabbitMqService) SendNotification(n notification.Notification, response
 	default:
 	}
 
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	ctx, cancel := context.WithDeadline(context.Background(), n.LockExpiryTime)
 	req := request{
 		n:       n,
@@ -90,6 +92,7 @@ func (r *RabbitMqService) SendNotification(n notification.Notification, response
 		success: make(chan bool, 1),
 		ctx:     ctx,
 	}
+	r.mu.Unlock()
 	r.jobs <- req
 
 	go func() {
@@ -131,14 +134,14 @@ func (r *RabbitMqService) Start() {
 // Stop signals cancellation and denies new jobs from being queued.
 func (r *RabbitMqService) Stop() {
 	slog.Info("mq service: halting")
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	select {
 	case <-r.cancelled:
 		return
 	default:
-		r.mu.Lock()
 		close(r.cancelled)
 		close(r.jobs)
-		r.mu.Unlock()
 	}
 }
 
@@ -177,6 +180,7 @@ func (r *RabbitMqService) handleReconnect() {
 			return
 		case <-connCloseCh:
 			slog.Warn("mq service: connection lost")
+			wg.Wait()
 		}
 	}
 }
@@ -214,8 +218,8 @@ func (r *RabbitMqService) handleNotifications(conn *amqp.Connection, connCloseCh
 	}
 }
 
-// handleNotifications belongs to a single connection. Returns when the
-// connection is closed, or when jobs is closed.
+// handleJobs belongs to a channel, it iterates through jobs after
+// startup.
 func (r *RabbitMqService) handleJobs(channel *amqp.Channel, chanCloseCh <-chan *amqp.Error) (shouldReturn bool) {
 	for {
 		select {
@@ -235,7 +239,12 @@ func (r *RabbitMqService) handleJobs(channel *amqp.Channel, chanCloseCh <-chan *
 func (r *RabbitMqService) sendSingleNotification(req request, channel *amqp.Channel, chanCloseCh <-chan *amqp.Error) {
 	ctx := req.ctx
 	n := req.n
-	routingKey := rabbitmqnotifications.DeviceTypeToRoutingKey[n.NotificationType]
+	routingKey, ok := rabbitmqnotifications.DeviceTypeToRoutingKey[n.NotificationType]
+	if !ok {
+		slog.Error("mq service: unknown device type", "type", n.NotificationType, "identifier", n.Identifier)
+		req.success <- false
+		return
+	}
 	currentBackoff := r.backoff
 
 	body, err := json.Marshal(n)
@@ -271,7 +280,7 @@ func (r *RabbitMqService) sendSingleNotification(req request, channel *amqp.Chan
 				slog.Warn("mq service: context closed on message", "identifier", n.Identifier)
 				req.success <- false
 				return
-			case <-time.After(currentBackoff * time.Second):
+			case <-time.After(currentBackoff):
 				currentBackoff = min(currentBackoff*2, r.maxBackoff)
 			}
 		} else {
