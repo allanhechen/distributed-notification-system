@@ -49,6 +49,9 @@ func (f *FakeMqService) SendNotification(n notification.Notification, responses 
 	return done, nil
 }
 
+func (f *FakeMqService) Start() {}
+func (f *FakeMqService) Stop()  {}
+
 // AddFailedIdentifier adds additional notifications that will fail to
 // deliver.
 func (f *FakeMqService) AddFailedIdentifier(u uuid.UUID) {

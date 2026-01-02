@@ -105,17 +105,16 @@ func (r *RabbitMqService) SendNotification(n notification.Notification, response
 		var success bool
 		select {
 		case <-ctx.Done():
-			slog.Error("mq service: notification was not processed in time", "notification", n)
 			success = false
 		case success = <-req.success:
 		}
 
 		if success {
-			slog.Info("mq service: notification was delivered successfully", "notification", n)
+			slog.Info("mq service: notification was delivered successfully", "identifier", n.Identifier)
 			update.FinalStatus = notification.StatusQueued
 			responses <- update
 		} else {
-			slog.Warn("mq service: notification was not delivered successfully", "notification", n)
+			slog.Warn("mq service: notification was not delivered successfully", "identifier", n.Identifier)
 			update.FinalStatus = notification.StatusUndelivered
 			responses <- update
 		}
@@ -125,11 +124,13 @@ func (r *RabbitMqService) SendNotification(n notification.Notification, response
 
 // Start connects to RabbitMQ and initializes workers.
 func (r *RabbitMqService) Start() {
+	slog.Info("mq service: connecting to RabbitMQ")
 	go r.handleReconnect()
 }
 
 // Stop signals cancellation and denies new jobs from being queued.
 func (r *RabbitMqService) Stop() {
+	slog.Info("mq service: halting")
 	select {
 	case <-r.cancelled:
 		return
@@ -158,6 +159,7 @@ func (r *RabbitMqService) handleReconnect() {
 			continue
 		}
 
+		slog.Info("mq service: connection established")
 		currentBackoff = r.backoff
 		connCloseCh := make(chan *amqp.Error, 1)
 		conn.NotifyClose(connCloseCh)
@@ -174,6 +176,7 @@ func (r *RabbitMqService) handleReconnect() {
 			conn.Close()
 			return
 		case <-connCloseCh:
+			slog.Warn("mq service: connection lost")
 		}
 	}
 }
@@ -187,22 +190,40 @@ func (r *RabbitMqService) handleNotifications(conn *amqp.Connection, connCloseCh
 	var chanCloseCh chan *amqp.Error
 
 	for {
+		chanCloseCh = make(chan *amqp.Error)
+		channel, err = conn.Channel()
+		if err != nil {
+			currentBackoff = min(currentBackoff*2, r.maxBackoff)
+			<-time.After(currentBackoff)
+			continue
+		}
+		slog.Info("mq service: worker connected to channel")
+		currentBackoff = r.backoff
+		channel.NotifyClose(chanCloseCh)
+
+		if shouldReturn := r.handleJobs(channel, chanCloseCh); shouldReturn {
+			return
+		}
+
 		select {
-		case <-chanCloseCh:
-			chanCloseCh = make(chan *amqp.Error)
-			channel, err = conn.Channel()
-			if err != nil {
-				currentBackoff = min(currentBackoff*2, r.maxBackoff)
-				<-time.After(currentBackoff)
-				continue
-			}
-			currentBackoff = r.backoff
-			channel.NotifyClose(chanCloseCh)
 		case <-connCloseCh:
 			return
+		case <-chanCloseCh:
+			slog.Info("mq service: worker disconnected from channel")
+		}
+	}
+}
+
+// handleNotifications belongs to a single connection. Returns when the
+// connection is closed, or when jobs is closed.
+func (r *RabbitMqService) handleJobs(channel *amqp.Channel, chanCloseCh <-chan *amqp.Error) (shouldReturn bool) {
+	for {
+		select {
+		case <-chanCloseCh:
+			return false
 		case req, ok := <-r.jobs:
 			if !ok {
-				channel.Close()
+				return true
 			}
 			r.sendSingleNotification(req, channel, chanCloseCh)
 		}
@@ -240,12 +261,14 @@ func (r *RabbitMqService) sendSingleNotification(req request, channel *amqp.Chan
 			Body: body,
 		})
 		if err != nil {
-			slog.Warn("mq service: failed to deliver notification", "error", err, "notification", n, "attempt", attempts)
+			slog.Warn("mq service: failed to deliver notification", "error", err, "identifier", n.Identifier, "attempt", attempts)
 			select {
 			case <-chanCloseCh:
+				slog.Warn("mq service: channel closed on message", "identifier", n.Identifier)
 				req.success <- false
 				return
 			case <-ctx.Done():
+				slog.Warn("mq service: context closed on message", "identifier", n.Identifier)
 				req.success <- false
 				return
 			case <-time.After(currentBackoff * time.Second):
@@ -257,6 +280,6 @@ func (r *RabbitMqService) sendSingleNotification(req request, channel *amqp.Chan
 		}
 	}
 
-	slog.Error("mq service: failed to deliver notification", "notification", n)
+	slog.Error("mq service: failed to deliver notification", "identifier", n.Identifier)
 	req.success <- false
 }

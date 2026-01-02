@@ -17,4 +17,10 @@ type MqService interface {
 	//
 	// Returned errors exist only for logging purposes.
 	SendNotification(n notification.Notification, responses chan<- StatusUpdate) (done <-chan struct{}, err error)
+
+	// Start connects to the message queue.
+	Start()
+
+	// Stop signals cancellation and denies new jobs from being queued.
+	Stop()
 }
