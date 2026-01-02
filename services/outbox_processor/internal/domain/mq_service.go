@@ -1,10 +1,12 @@
 package domain
 
 import (
-	"context"
+	"errors"
 
 	"github.com/allanhechen/distributed-notification-system/utils/notification"
 )
+
+var ErrAlreadyClosed = errors.New("mq service: mq connection already closed")
 
 // MqService is an interface that abstracts communication with the message
 // queue.
@@ -14,5 +16,5 @@ type MqService interface {
 	// It sends a message to the returned channel when done
 	//
 	// Returned errors exist only for logging purposes.
-	SendNotification(ctx context.Context, n notification.Notification, responses chan<- StatusUpdate) (done <-chan struct{}, err error)
+	SendNotification(n notification.Notification, responses chan<- StatusUpdate) (done <-chan struct{}, err error)
 }

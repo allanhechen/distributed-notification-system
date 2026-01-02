@@ -77,7 +77,7 @@ func (c *ConcreteOutboxService) HandleMessages(ctx context.Context) error {
 			}
 			for _, n := range batch {
 				updateWg.Go(func() {
-					done, err := c.mqs.SendNotification(ctx, n, updates)
+					done, err := c.mqs.SendNotification(n, updates)
 					if err != nil {
 						slog.Error("outbox service: message queue service failed to send notification", "error", err, "notification", n)
 						return
