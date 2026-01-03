@@ -18,6 +18,7 @@ fmt:
 	done
 
 test:
+	set -e; \
 	for mod in $(MODULES); do \
 		echo "Testing $$mod"; \
 		(cd $$mod && go test ./...); \
