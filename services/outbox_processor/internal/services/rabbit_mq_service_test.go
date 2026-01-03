@@ -24,7 +24,7 @@ func TestRabbitMqService_SendNotification(t *testing.T) {
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
-	mqs := GetRabbitMqService(c.ConnString, 1, 1, 250*time.Millisecond, 1)
+	mqs := GetRabbitMqService(c.ConnString, 1, 1, 100*time.Millisecond, 100*time.Millisecond, 1)
 	mqs.Start()
 	defer mqs.Stop()
 
@@ -60,7 +60,7 @@ func TestRabbitMqService_Reconnect(t *testing.T) {
 	err = c.DeclareEntities(ctx)
 	require.NoError(t, err)
 
-	mqs := GetRabbitMqService(c.ConnString, 1, 1, 250*time.Millisecond, 1)
+	mqs := GetRabbitMqService(c.ConnString, 1, 1, 100*time.Millisecond, 100*time.Millisecond, 1)
 	mqs.Start()
 	defer mqs.Stop()
 
@@ -85,10 +85,10 @@ func TestRabbitMqService_Reconnect(t *testing.T) {
 
 	// disconnect and try again
 	c.Disconnect()
-	<-time.After(250 * time.Millisecond)
+	<-time.After(100 * time.Millisecond)
 	c.Reconnect()
 
-	expiryTime = time.Now().UTC().Add(1 * time.Second)
+	expiryTime = time.Now().UTC().Add(2 * time.Second)
 	n = notification.GetFakeNotification(notification.TestDeviceType, notification.StatusUndelivered, 0, expiryTime)
 	updates = make(chan domain.StatusUpdate, 1)
 	done, err = mqs.SendNotification(n, updates)
