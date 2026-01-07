@@ -1,6 +1,7 @@
 go 1.25.4
 
 use (
+	./services/authentication
 	./services/app
 	./services/outbox_processor
 	./services/worker
