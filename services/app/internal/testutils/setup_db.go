@@ -77,7 +77,7 @@ func GetCrdbDatabaseContainer(ctx context.Context) (*DatabaseContainer, error) {
 // used after creating a new DatabaseContainer to match the production
 // database.
 func Migrate(ctx context.Context, databaseContainer *DatabaseContainer) error {
-	migrationPath, err := getSourceURL("../../")
+	migrationPath, err := getSourceURL()
 	if err != nil {
 		return err
 	}
@@ -96,28 +96,12 @@ func Migrate(ctx context.Context, databaseContainer *DatabaseContainer) error {
 	return nil
 }
 
-// getMigrationAbsolutePath resolves the migration directory path relative to the caller's location.
-// Expects migrations to be in <projectRoot>/internal/db/migrations.
-func getMigrationAbsolutePath(relativePathToProjectRoot string) (string, error) {
+func getSourceURL() (string, error) {
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
 		return "", fmt.Errorf("failed to get caller information")
 	}
 
-	migrationDir := filepath.Join(filepath.Dir(filename), relativePathToProjectRoot, "internal", "db", "migrations")
-
-	absPath, err := filepath.Abs(migrationDir)
-	if err != nil {
-		return "", err
-	}
-	return absPath, nil
-}
-
-func getSourceURL(relativePathToProjectRoot string) (string, error) {
-	absPath, err := getMigrationAbsolutePath(relativePathToProjectRoot)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("file://%s", absPath), nil
+	migrationDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "database_migrations")
+	return fmt.Sprintf("file://%s", migrationDir), nil
 }
